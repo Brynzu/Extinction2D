@@ -7,7 +7,7 @@ export const CARDS = CONFIG.CARDS;
 export const cl = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
 export const cnt = (t) => U.filter((u) => u.t === t).length;
 
-export function addUnit(t, x, y, targetX = x, targetY = y) {
+export function addUnit(t, x, y, targetX = x, targetY = y, isDrone = false) {
   U.push({
     t,
     x,
@@ -18,7 +18,8 @@ export function addUnit(t, x, y, targetX = x, targetY = y) {
     tm: 0,
     hp: CONFIG.UNITS.DEFAULT_HP,
     mh: CONFIG.UNITS.DEFAULT_HP,
-    sp: 1,
+    sp: isDrone ? 3 : 1,
+    isDrone,
     tr: false,
     path: [],
     exit: null,
@@ -36,6 +37,7 @@ export function addUnit(t, x, y, targetX = x, targetY = y) {
     cd: Math.random(),
     ct: 0,
     auto: false,
+    attackTarget: null,
   });
 }
 
@@ -50,7 +52,7 @@ export function deploy(t, cardIndex) {
     const targetX = cl(hqPos.x + ((k % 3) - 1) * 1.2, 0.5, C - 0.5);
     const targetY = cl(hqPos.y + (Math.floor(k / 3) - 0.5) * 1.2, 0.5, R - 0.5);
 
-    addUnit(t, startX, startY, targetX, targetY);
+    addUnit(t, startX, startY, targetX, targetY, c.isDrone);
     const u = U[U.length - 1];
     u.hp = u.mh = c.hp;
     u.sp = c.sp;
@@ -60,6 +62,13 @@ export function deploy(t, cardIndex) {
 export function nudge(u, mx, my) {
   const nx = cl(u.x + mx, 0.3, C - 0.3);
   const ny = cl(u.y + my, 0.3, R - 0.3);
+
+  if (u.isDrone) {
+    u.x = nx;
+    u.y = ny;
+    return;
+  }
+
   const f = (a, b) =>
     u.tr
       ? isT(Math.floor(a), Math.floor(b))
@@ -80,6 +89,7 @@ export function sep() {
     for (let j = i + 1; j < U.length; j++) {
       const a = U[i];
       const b = U[j];
+      if (a.isDrone || b.isDrone) continue; // Drones no se empujan con tropas terrestres
       let dx = b.x - a.x;
       let dy = b.y - a.y;
       let d = Math.hypot(dx, dy);

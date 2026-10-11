@@ -98,7 +98,7 @@ function step(now) {
       u.gc = null;
     }
 
-    const mt = u.tr ? [u.tx, u.ty] : wpt(u);
+    const mt = (u.tr || u.isDrone) ? [u.tx, u.ty] : wpt(u);
     const dx = mt[0] - u.x;
     const dy = mt[1] - u.y;
     const d = Math.hypot(dx, dy);
@@ -109,7 +109,9 @@ function step(now) {
       const px = u.x + (dx / d) * m;
       const py = u.y + (dy / d) * m;
       const ok = (a, b) =>
-        u.tr
+        u.isDrone
+          ? true
+          : u.tr
           ? isT(Math.floor(a), Math.floor(b))
           : !isT(Math.floor(a), Math.floor(b)) ||
             isT(Math.floor(u.x), Math.floor(u.y)) ||

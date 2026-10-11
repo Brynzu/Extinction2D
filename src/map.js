@@ -27,35 +27,35 @@ function blob(cx, cy, r) {
 export function initMap() {
   T.fill(0);
 
-  // Generar bosques distribuidos en el mapa ampliado
-  for (let i = 0; i < 30; i++) {
-    blob(4 + Math.random() * (C - 8), 10 + Math.random() * (R - 20), 2 + Math.random() * 2);
+  // Generar bosques distribuidos en el mapa horizontal (120x80)
+  for (let i = 0; i < 35; i++) {
+    blob(10 + Math.random() * (C - 20), 6 + Math.random() * (R - 12), 2 + Math.random() * 2);
   }
 
-  // Generar varias líneas y redes de trincheras a lo largo del mapa
+  // Generar varias líneas verticales/horizontales de trincheras en el frente central
   const numLines = 8;
   for (let i = 0; i < numLines; i++) {
-    const y = Math.floor(15 + i * 12 + Math.random() * 4);
-    if (y >= R - 10) continue;
-    const x0 = Math.floor(Math.random() * (C - 20));
+    const x = Math.floor(20 + i * 11 + Math.random() * 3);
+    if (x >= C - 15) continue;
+    const y0 = Math.floor(Math.random() * (R - 20));
     const n = 12 + Math.floor(Math.random() * 8);
-    for (let x = x0; x < x0 + n && x < C; x++) {
-      T[y * C + x] = (x < x0 + 2 || x >= x0 + n - 2) ? 3 : 4;
+    for (let y = y0; y < y0 + n && y < R; y++) {
+      T[y * C + x] = (y < y0 + 2 || y >= y0 + n - 2) ? 3 : 4;
     }
-    const bx = x0 + 3 + Math.floor(Math.random() * (n - 6));
-    const dy = i % 2 ? 1 : -1;
+    const by = y0 + 3 + Math.floor(Math.random() * (n - 6));
+    const dx = i % 2 ? 1 : -1;
     for (let k = 1; k <= 5; k++) {
-      const yy = y + dy * k;
-      if (yy >= 0 && yy < R) {
-        T[yy * C + bx] = k === 5 ? 3 : 4;
+      const xx = x + dx * k;
+      if (xx >= 0 && xx < C) {
+        T[by * C + xx] = k === 5 ? 3 : 4;
       }
     }
   }
 
-  // Inicializar territorio: rojo arriba (primeras 30 filas), azul abajo (últimas 30 filas)
+  // Inicializar territorio en formato horizontal: azul a la izquierda (primeras 30 columnas), rojo a la derecha (últimas 30 columnas)
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
-      v[y * C + x] = y < 30 ? -1 : y >= 90 ? 1 : 0;
+      v[y * C + x] = x < 30 ? 1 : x >= 90 ? -1 : 0;
     }
   }
 

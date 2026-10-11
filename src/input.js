@@ -1,12 +1,13 @@
 import { CONFIG } from './config.js';
 import { C, R, S, T, isT } from './map.js';
 import { cv, msg } from './render.js';
+import { sounds } from './sound.js';
 import { bfs, orderTrench } from './trenches.js';
 import { CARDS, U, cl, cnt, deploy } from './units.js';
 
 export const camera = {
   x: 0,
-  y: (R * S) - 800, // Inicialmente enfocando la parte inferior (zona azul / HQ azul)
+  y: (R * S) / 2 - 200,
   zoom: CONFIG.CAMERA.DEFAULT_ZOOM,
 };
 
@@ -53,7 +54,6 @@ export function screenToWorld(sx, sy) {
 export function initInput(P) {
   clampCamera();
 
-  // Zoom con rueda del ratón
   cv.addEventListener('wheel', (e) => {
     e.preventDefault();
     const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
@@ -71,6 +71,8 @@ export function initInput(P) {
   }, { passive: false });
 
   const tap = (worldX, worldY) => {
+    sounds.init();
+
     if (P.sel >= 0) {
       const c = CARDS[P.sel];
       if (cnt(1) + c.k > CONFIG.GAME.MAX_UNITS_PER_SIDE) {
@@ -79,6 +81,7 @@ export function initInput(P) {
         P.res -= c.c;
         P.cds[P.sel] = c.cd;
         deploy(1, P.sel);
+        sounds.playDeploy();
         P.sel = -1;
       }
       return;
@@ -88,29 +91,56 @@ export function initInput(P) {
     const dbl = nowT - lastTap < 320;
     lastTap = nowT;
 
-    const hit = U.filter((u) => u.t > 0 && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
+    const selectedUnits = U.filter((u) => u.s && u.t > 0);
+
+    // Si tocamos una unidad enemiga visible, dar orden de ataque directo (RTS clásico)
+    const enemyHit = U.filter((u) => u.t < 0 && u.seen && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
       (p, q) => Math.hypot(p.x - worldX, p.y - worldY) - Math.hypot(q.x - worldX, q.y - worldY)
     )[0];
 
-    if (hit) {
-      if (dbl) {
-        U.forEach((u) => {
-          if (u.t > 0) u.s = true;
-        });
-      } else {
-        hit.s = !hit.s;
-      }
+    if (enemyHit && selectedUnits.length > 0) {
+      selectedUnits.forEach((u) => {
+        u.attackTarget = enemyHit;
+        u.auto = false;
+        u.enter = false;
+        u.hold = null;
+        u.post = null;
+        u.tx = enemyHit.x;
+        u.ty = enemyHit.y;
+      });
+      sounds.playSelect();
       return;
     }
 
+    // Si NO hay unidades seleccionadas aún, tocar una unidad propia la selecciona
+    if (selectedUnits.length === 0) {
+      const ownHit = U.filter((u) => u.t > 0 && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
+        (p, q) => Math.hypot(p.x - worldX, p.y - worldY) - Math.hypot(q.x - worldX, q.y - worldY)
+      )[0];
+
+      if (ownHit) {
+        if (dbl) {
+          U.forEach((u) => {
+            if (u.t > 0) u.s = true;
+          });
+        } else {
+          ownHit.s = true;
+        }
+        sounds.playSelect();
+        return;
+      }
+    }
+
+    // Si ya hay unidades seleccionadas y tocamos en el mapa (o en otra unidad), priorizar el movimiento
     const cx = Math.floor(worldX);
     const cy = Math.floor(worldY);
 
-    U.filter((u) => u.s).forEach((u, i) => {
+    selectedUnits.forEach((u, i) => {
+      u.attackTarget = null;
       const ox = cl(worldX + ((i % 3) - 1) * 1.3, 0.5, C - 0.5);
       const oy = cl(worldY + (Math.floor(i / 3) - 1) * 1.3, 0.5, R - 0.5);
-      if (isT(cx, cy)) {
-        if (i === 0) orderTrench(U.filter((w) => w.s), cx, cy);
+      if (isT(cx, cy) && !u.isDrone) {
+        if (i === 0) orderTrench(selectedUnits.filter((w) => !w.isDrone), cx, cy);
       } else if (u.tr) {
         if (dbl) {
           const p = bfs(Math.floor(u.x), Math.floor(u.y), (a, b) => T[b * C + a] === 3);
@@ -127,8 +157,8 @@ export function initInput(P) {
         u.hold = null;
         u.post = null;
         const bad = isT(Math.floor(ox), Math.floor(oy));
-        u.tx = bad ? worldX : ox;
-        u.ty = bad ? worldY : oy;
+        u.tx = u.isDrone ? worldX : bad ? worldX : ox;
+        u.ty = u.isDrone ? worldY : bad ? worldY : oy;
       }
     });
   };
@@ -163,7 +193,6 @@ export function initInput(P) {
     });
 
     if (activePointers.size === 2) {
-      // Gesto multitáctil con 2 dedos: desplazar cámara (Pan) y zoom (Pinch)
       const pts = Array.from(activePointers.values());
       const newDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
 
@@ -184,7 +213,6 @@ export function initInput(P) {
       }
       lastPinchDist = newDist;
 
-      // Pan con 2 dedos
       const rect = cv.getBoundingClientRect();
       const dx = ((e.clientX - prev.x) * (cv.width / rect.width)) / camera.zoom;
       const dy = ((e.clientY - prev.y) * (cv.height / rect.height)) / camera.zoom;
@@ -192,7 +220,6 @@ export function initInput(P) {
       camera.y -= dy / 2;
       clampCamera();
     } else if (activePointers.size === 1 && !isPanning) {
-      // 1 dedo o ratón: recuadro de selección si se arrastra
       const p = activePointers.get(e.pointerId);
       const dist = Math.hypot(p.x - p.startX, p.y - p.startY);
       if (dist > 8) {
@@ -215,16 +242,15 @@ export function initInput(P) {
     if (activePointers.size === 0) {
       const dist = Math.hypot(p.x - p.startX, p.y - p.startY);
       if (box) {
-        // Seleccionar unidades dentro del recuadro
         const x0 = Math.min(box[0], box[2]);
         const x1 = Math.max(box[0], box[2]);
         const y0 = Math.min(box[1], box[3]);
         const y1 = Math.max(box[1], box[3]);
         const inn = U.filter((u) => u.t > 0 && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
         U.forEach((u) => (u.s = inn.includes(u)));
+        sounds.playSelect();
         box = null;
       } else if (dist <= 8 && !isPanning) {
-        // Toque simple
         const [wx, wy] = screenToWorld(p.x, p.y);
         tap(wx, wy);
       }

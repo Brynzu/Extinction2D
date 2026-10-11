@@ -1,16 +1,24 @@
 import { CONFIG } from './config.js';
 import { C, R, T, TC, ci, deep, isT, tt } from './map.js';
+import { sounds } from './sound.js';
 import { U, cl } from './units.js';
 
 export let B = [];
+export let explosions = [];
 
 export function clearBullets() {
   B.length = 0;
+  explosions.length = 0;
 }
 
 export function filterBullets() {
   B = B.filter((b) => b.l > 0 && !b.dead);
   return B;
+}
+
+export function filterExplosions() {
+  explosions = explosions.filter((ex) => ex.l > 0);
+  return explosions;
 }
 
 const losT = (s, e) => {
@@ -23,21 +31,24 @@ const losT = (s, e) => {
 };
 
 export const canHit = (s, e) => {
+  if (s.isDrone || e.isDrone) return true;
   if (!deep(s) && !deep(e)) return true;
   return s.tr && e.tr && TC[ci(s)] === TC[ci(e)] && losT(s, e);
 };
 
 export const hitOk = (b, e) => {
+  if (e.isDrone) return true;
   const same = e.tr && b.tn >= 0 && TC[ci(e)] === b.tn;
   return deep(e) || b.dp ? same : true;
 };
 
 export const vr = (e, o) => {
+  if (e.isDrone) return CONFIG.VISIBILITY.VISION_DEFAULT; // Drones no se ocultan en bosques/trincheras
   const k = tt(e.x, e.y);
   return k === 4 && e.tr ? (o.tr && TC[ci(o)] === TC[ci(e)] ? 5 : 0) : k === 1 ? 3 : 8;
 };
 
-export const canSee = (x, y) => U.some((u) => u.t > 0 && Math.hypot(u.x - x, u.y - y) <= 8);
+export const canSee = (x, y) => U.some((u) => u.t > 0 && Math.hypot(u.x - x, u.y - y) <= CONFIG.VISIBILITY.VISION_DEFAULT);
 
 export function vis(dt) {
   for (const e of U) {
@@ -54,20 +65,77 @@ export function vis(dt) {
   }
 }
 
+export function triggerExplosion(x, y) {
+  sounds.playExplosion();
+  explosions.push({ x, y, l: 0.4, maxL: 0.4 });
+
+  // Daño directo a unidad en casilla e impacto a 1 casilla alrededor
+  for (const victim of U) {
+    const dist = Math.hypot(victim.x - x, victim.y - y);
+    if (dist <= 0.8) {
+      victim.hp = 0; // Matar unidad directa
+    } else if (dist <= 1.8) {
+      victim.hp -= 2.5; // Dañar gravemente adyacentes
+    }
+  }
+}
+
 export function updateCombat(dt) {
+  filterExplosions();
+  for (const ex of explosions) {
+    ex.l -= dt;
+  }
+
   for (const u of U) {
     u.cd -= dt;
-    let tg = null;
-    let bd = CONFIG.COMBAT.RANGE_DEFAULT;
 
-    for (const e of U) {
-      if (e.t !== u.t) {
-        const d = Math.hypot(e.x - u.x, e.y - u.y);
-        if (d < bd && d <= (tt(e.x, e.y) === 1 ? CONFIG.COMBAT.RANGE_FOREST : CONFIG.COMBAT.RANGE_DEFAULT) && canHit(u, e) && e.seen) {
-          bd = d;
-          tg = e;
+    // Lógica especial para Dron Kamikaze
+    if (u.isDrone) {
+      let target = u.attackTarget && u.attackTarget.hp > 0 ? u.attackTarget : null;
+
+      if (!target) {
+        let bd = 15;
+        for (const e of U) {
+          if (e.t !== u.t && e.seen) {
+            const d = Math.hypot(e.x - u.x, e.y - u.y);
+            if (d < bd) {
+              bd = d;
+              target = e;
+            }
+          }
         }
       }
+
+      if (target) {
+        u.tx = target.x;
+        u.ty = target.y;
+
+        // Estrellarse contra el objetivo al estar a distancia de impacto
+        if (Math.hypot(target.x - u.x, target.y - u.y) <= 0.6) {
+          u.hp = 0;
+          triggerExplosion(u.x, u.y);
+          continue;
+        }
+      }
+      continue;
+    }
+
+    // Lógica para unidades normales
+    let tg = u.attackTarget && u.attackTarget.hp > 0 ? u.attackTarget : null;
+    let bd = CONFIG.COMBAT.RANGE_DEFAULT;
+
+    if (!tg) {
+      for (const e of U) {
+        if (e.t !== u.t) {
+          const d = Math.hypot(e.x - u.x, e.y - u.y);
+          if (d < bd && d <= (tt(e.x, e.y) === 1 ? CONFIG.COMBAT.RANGE_FOREST : CONFIG.COMBAT.RANGE_DEFAULT) && canHit(u, e) && e.seen) {
+            bd = d;
+            tg = e;
+          }
+        }
+      }
+    } else {
+      bd = Math.hypot(tg.x - u.x, tg.y - u.y);
     }
 
     const had = u.cb;
@@ -130,6 +198,7 @@ export function updateCombat(dt) {
         t: u.t,
         l: CONFIG.COMBAT.BULLET_LIFETIME,
       });
+      sounds.playShot();
       u.cd = CONFIG.COMBAT.ATTACK_COOLDOWN;
       u.rev = CONFIG.COMBAT.SHOT_REVEAL_TIME;
     }
