@@ -12,19 +12,10 @@ export function aiPlay(E) {
     }
   }
   if (!o.length) return;
-  let best = null;
-  for (let t = 0; t < 30; t++) {
-    const x = Math.floor(Math.random() * C);
-    const y = Math.floor(Math.random() * R);
-    if (v[y * C + x] < -0.3 && (!best || y > best[1])) {
-      best = [x + 0.5, y + 0.5];
-    }
-  }
-  if (!best) return;
   const i = o[Math.floor(Math.random() * o.length)];
   E.res -= CARDS[i].c;
   E.cds[i] = CARDS[i].cd;
-  deploy(-1, i, best[0], best[1]);
+  deploy(-1, i);
 }
 
 export function aiTrench() {

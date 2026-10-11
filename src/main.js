@@ -20,10 +20,10 @@ const rate = (t) => CONFIG.GAME.RESOURCE_BASE_RATE + CONFIG.GAME.RESOURCE_TERRIT
 export function initGame() {
   initMap();
 
-  // Inicializar unidades iniciales (5 azules, 5 rojas)
+  // Inicializar unidades iniciales (5 azules abajo, 5 rojas arriba)
   for (let i = 0; i < 5; i++) {
-    addUnit(1, 3 + i * 4.5, 31);
-    addUnit(-1, 3 + i * 4.5, 4);
+    addUnit(1, CONFIG.HQ.BLUE_HQ.x + (i - 2) * 2, CONFIG.HQ.BLUE_HQ.y - 2);
+    addUnit(-1, CONFIG.HQ.RED_HQ.x + (i - 2) * 2, CONFIG.HQ.RED_HQ.y + 2);
   }
 
   initCardsUI(P);
@@ -72,7 +72,7 @@ function step(now) {
       if (u.tm <= 0 && !u.cb && !u.gar) {
         u.auto = false;
         u.tx = 1 + Math.random() * (C - 2);
-        u.ty = 3 + Math.random() * 22;
+        u.ty = 10 + Math.random() * (R - 20);
         if (isT(Math.floor(u.tx), Math.floor(u.ty))) u.tx = cl(u.tx + 2, 0.5, C - 0.5);
         u.tm = 3 + Math.random() * 4;
       }

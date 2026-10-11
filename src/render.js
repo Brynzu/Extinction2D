@@ -1,12 +1,15 @@
 import { B, canSee } from './combat.js';
 import { CONFIG } from './config.js';
+import { camera } from './input.js';
 import { C, R, S, T, deep, v } from './map.js';
-import { CARDS, U } from './units.js';
+import { CARDS, U, deploy } from './units.js';
 
 export const cv = document.getElementById('c');
 export const g = cv.getContext('2d');
-cv.width = C * S;
-cv.height = R * S;
+
+// Ajustar tamaño del Canvas según el contenedor o ventana
+cv.width = 480;
+cv.height = 720;
 
 export const hint = document.getElementById('hint');
 export const HINT = hint.textContent;
@@ -27,6 +30,7 @@ export function msg(t) {
 }
 
 export function initCardsUI(P) {
+  cardsEl.innerHTML = '';
   CARDS.forEach((c, i) => {
     const b = document.createElement('button');
     b.className = 'card';
@@ -34,8 +38,10 @@ export function initCardsUI(P) {
     b.onclick = () => {
       if (P.cds[i] > 0) return msg('Esa carta se está recargando.');
       if (P.res < c.c) return msg('Recurso insuficiente.');
-      P.sel = P.sel === i ? -1 : i;
-      if (P.sel >= 0) msg('Toca tu territorio azul para desplegar.');
+      P.res -= c.c;
+      P.cds[i] = c.cd;
+      deploy(1, i);
+      msg('Refuerzos desplegados desde la esquina.');
     };
     cardsEl.appendChild(b);
   });
@@ -53,12 +59,21 @@ export function ui(P) {
 }
 
 export function draw(P, box, setCounts) {
+  g.clearRect(0, 0, cv.width, cv.height);
+
+  g.save();
+  // Aplicar transformación de la cámara (zoom y traslación)
+  g.scale(camera.zoom, camera.zoom);
+  g.translate(-camera.x, -camera.y);
+
+  // Fondo del mapa
   g.fillStyle = '#4a5340';
-  g.fillRect(0, 0, cv.width, cv.height);
+  g.fillRect(0, 0, C * S, R * S);
 
   let b = 0;
   let r = 0;
 
+  // Renderizar territorio
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
       const a = v[y * C + x];
@@ -70,13 +85,10 @@ export function draw(P, box, setCounts) {
     }
   }
 
+  // Renderizar trincheras
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
       const k = T[y * C + x];
-      if (P.sel >= 0 && v[y * C + x] > 0.3) {
-        g.fillStyle = 'rgba(255,255,255,.14)';
-        g.fillRect(x * S, y * S, S, S);
-      }
       if (k >= 3) {
         g.fillStyle = k === 3 ? '#5a4631' : '#17120d';
         g.fillRect(x * S, y * S, S, S);
@@ -84,6 +96,25 @@ export function draw(P, box, setCounts) {
     }
   }
 
+  // Renderizar HQs (Cuarteles Generales)
+  const drawHQ = (hqPos, color, label) => {
+    const hqX = hqPos.x * S;
+    const hqY = hqPos.y * S;
+    g.fillStyle = color;
+    g.fillRect(hqX - 25, hqY - 25, 50, 50);
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 3;
+    g.strokeRect(hqX - 25, hqY - 25, 50, 50);
+    g.fillStyle = '#ffffff';
+    g.font = 'bold 12px sans-serif';
+    g.textAlign = 'center';
+    g.fillText(label, hqX, hqY + 4);
+  };
+
+  drawHQ(CONFIG.HQ.BLUE_HQ, '#3b7fd0', 'HQ AZUL');
+  drawHQ(CONFIG.HQ.RED_HQ, '#cf4a3a', 'HQ ROJO');
+
+  // Renderizar Unidades
   for (const u of U) {
     if (u.t < 0 && !u.seen) continue;
     if (u.s) {
@@ -109,6 +140,7 @@ export function draw(P, box, setCounts) {
     g.fillRect(u.x * S - 6, u.y * S + 8, (12 * u.hp) / u.mh, 3);
   }
 
+  // Renderizar Balas
   g.lineWidth = 1.5;
   g.lineCap = 'round';
   for (const bullet of B) {
@@ -120,6 +152,7 @@ export function draw(P, box, setCounts) {
     g.stroke();
   }
 
+  // Renderizar Árboles / Bosques
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
       if (T[y * C + x] === 1) {
@@ -141,11 +174,12 @@ export function draw(P, box, setCounts) {
     }
   }
 
+  // Renderizar Recuadro de Selección (box)
   if (box) {
-    const bx = Math.min(box[0], box[2]);
-    const by = Math.min(box[1], box[3]);
-    const bw = Math.abs(box[2] - box[0]);
-    const bh = Math.abs(box[3] - box[1]);
+    const bx = Math.min(box[0], box[2]) * S;
+    const by = Math.min(box[1], box[3]) * S;
+    const bw = Math.abs(box[2] - box[0]) * S;
+    const bh = Math.abs(box[3] - box[1]) * S;
     g.fillStyle = 'rgba(255,255,255,.12)';
     g.fillRect(bx, by, bw, bh);
     g.strokeStyle = '#fff';
@@ -155,6 +189,11 @@ export function draw(P, box, setCounts) {
     g.setLineDash([]);
   }
 
+  g.restore(); // Restaurar contexto sin transformaciones de cámara
+
+  // Renderizar Minimapa en la esquina superior derecha
+  drawMinimap();
+
   if (setCounts) setCounts(b, r);
   const n = C * R;
   const pb = Math.round((b / n) * 100);
@@ -163,4 +202,38 @@ export function draw(P, box, setCounts) {
   prEl.textContent = 'Enemigo ' + pr + '%';
   bb.style.width = pb + '%';
   br.style.width = pr + '%';
+}
+
+function drawMinimap() {
+  const mw = 100;
+  const mh = 150;
+  const mx = cv.width - mw - 10;
+  const my = 10;
+
+  // Fondo minimapa
+  g.fillStyle = 'rgba(21, 24, 26, 0.85)';
+  g.fillRect(mx, my, mw, mh);
+  g.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  g.lineWidth = 1;
+  g.strokeRect(mx, my, mw, mh);
+
+  const scaleX = mw / (C * S);
+  const scaleY = mh / (R * S);
+
+  // Unidades en minimapa
+  for (const u of U) {
+    if (u.t < 0 && !u.seen) continue;
+    g.fillStyle = u.t > 0 ? '#3b7fd0' : '#cf4a3a';
+    g.fillRect(mx + u.x * S * scaleX - 1, my + u.y * S * scaleY - 1, 3, 3);
+  }
+
+  // Cuadro de vista de la cámara
+  const viewW = (cv.width / camera.zoom) * scaleX;
+  const viewH = (cv.height / camera.zoom) * scaleY;
+  const viewX = mx + camera.x * scaleX;
+  const viewY = my + camera.y * scaleY;
+
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 1.5;
+  g.strokeRect(viewX, viewY, viewW, viewH);
 }

@@ -1,33 +1,84 @@
 import { CONFIG } from './config.js';
-import { C, R, S, T, isT, v } from './map.js';
+import { C, R, S, T, isT } from './map.js';
 import { cv, msg } from './render.js';
 import { bfs, orderTrench } from './trenches.js';
 import { CARDS, U, cl, cnt, deploy } from './units.js';
 
+export const camera = {
+  x: 0,
+  y: (R * S) - 800, // Inicialmente enfocando la parte inferior (zona azul / HQ azul)
+  zoom: CONFIG.CAMERA.DEFAULT_ZOOM,
+};
+
 let lastTap = 0;
-let dg = null;
 let box = null;
+let activePointers = new Map();
+let lastPinchDist = null;
+let isPanning = false;
 
 export function getBox() {
   return box;
 }
 
-export function initInput(P) {
-  const tap = (e) => {
-    const b = cv.getBoundingClientRect();
-    const x = ((e.clientX - b.left) / b.width) * C;
-    const y = ((e.clientY - b.top) / b.height) * R;
+export function clampCamera() {
+  const viewW = cv.width / camera.zoom;
+  const viewH = cv.height / camera.zoom;
+  const mapW = C * S;
+  const mapH = R * S;
 
+  if (viewW >= mapW) {
+    camera.x = (mapW - viewW) / 2;
+  } else {
+    camera.x = Math.max(0, Math.min(mapW - viewW, camera.x));
+  }
+
+  if (viewH >= mapH) {
+    camera.y = (mapH - viewH) / 2;
+  } else {
+    camera.y = Math.max(0, Math.min(mapH - viewH, camera.y));
+  }
+}
+
+export function screenToWorld(sx, sy) {
+  const rect = cv.getBoundingClientRect();
+  const canvasX = (sx - rect.left) * (cv.width / rect.width);
+  const canvasY = (sy - rect.top) * (cv.height / rect.height);
+
+  const worldPx = camera.x + canvasX / camera.zoom;
+  const worldPy = camera.y + canvasY / camera.zoom;
+
+  return [worldPx / S, worldPy / S, canvasX, canvasY];
+}
+
+export function initInput(P) {
+  clampCamera();
+
+  // Zoom con rueda del ratón
+  cv.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    const oldZoom = camera.zoom;
+    const newZoom = Math.max(CONFIG.CAMERA.MIN_ZOOM, Math.min(CONFIG.CAMERA.MAX_ZOOM, oldZoom * zoomFactor));
+
+    const rect = cv.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) * (cv.width / rect.width);
+    const mouseY = (e.clientY - rect.top) * (cv.height / rect.height);
+
+    camera.x += mouseX / oldZoom - mouseX / newZoom;
+    camera.y += mouseY / oldZoom - mouseY / newZoom;
+    camera.zoom = newZoom;
+    clampCamera();
+  }, { passive: false });
+
+  const tap = (worldX, worldY) => {
     if (P.sel >= 0) {
       const c = CARDS[P.sel];
-      if (!(v[Math.floor(y) * C + Math.floor(x)] > 0.3)) {
-        msg('Solo puedes desplegar en tu territorio (celdas azules).');
-      } else if (cnt(1) + c.k > CONFIG.GAME.MAX_UNITS_PER_SIDE) {
+      if (cnt(1) + c.k > CONFIG.GAME.MAX_UNITS_PER_SIDE) {
         msg('Límite de unidades alcanzado.');
       } else {
         P.res -= c.c;
         P.cds[P.sel] = c.cd;
-        deploy(1, P.sel, x, y);
+        deploy(1, P.sel);
         P.sel = -1;
       }
       return;
@@ -37,8 +88,8 @@ export function initInput(P) {
     const dbl = nowT - lastTap < 320;
     lastTap = nowT;
 
-    const hit = U.filter((u) => u.t > 0 && Math.hypot(u.x - x, u.y - y) < 0.8).sort(
-      (p, q) => Math.hypot(p.x - x, p.y - y) - Math.hypot(q.x - x, q.y - y)
+    const hit = U.filter((u) => u.t > 0 && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
+      (p, q) => Math.hypot(p.x - worldX, p.y - worldY) - Math.hypot(q.x - worldX, q.y - worldY)
     )[0];
 
     if (hit) {
@@ -52,12 +103,12 @@ export function initInput(P) {
       return;
     }
 
-    const cx = Math.floor(x);
-    const cy = Math.floor(y);
+    const cx = Math.floor(worldX);
+    const cy = Math.floor(worldY);
 
     U.filter((u) => u.s).forEach((u, i) => {
-      const ox = cl(x + ((i % 3) - 1) * 1.3, 0.5, C - 0.5);
-      const oy = cl(y + (Math.floor(i / 3) - 1) * 1.3, 0.5, R - 0.5);
+      const ox = cl(worldX + ((i % 3) - 1) * 1.3, 0.5, C - 0.5);
+      const oy = cl(worldY + (Math.floor(i / 3) - 1) * 1.3, 0.5, R - 0.5);
       if (isT(cx, cy)) {
         if (i === 0) orderTrench(U.filter((w) => w.s), cx, cy);
       } else if (u.tr) {
@@ -76,54 +127,112 @@ export function initInput(P) {
         u.hold = null;
         u.post = null;
         const bad = isT(Math.floor(ox), Math.floor(oy));
-        u.tx = bad ? x : ox;
-        u.ty = bad ? y : oy;
+        u.tx = bad ? worldX : ox;
+        u.ty = bad ? worldY : oy;
       }
     });
   };
 
-  const pc = (e) => {
-    const b = cv.getBoundingClientRect();
-    return [((e.clientX - b.left) / b.width) * C, ((e.clientY - b.top) / b.height) * R];
-  };
-
   cv.addEventListener('pointerdown', (e) => {
-    dg = { cx: e.clientX, cy: e.clientY, on: false };
     cv.setPointerCapture(e.pointerId);
+    activePointers.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      startX: e.clientX,
+      startY: e.clientY,
+    });
+
+    if (activePointers.size === 2) {
+      box = null;
+      isPanning = true;
+      const pts = Array.from(activePointers.values());
+      lastPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    } else if (activePointers.size === 1) {
+      isPanning = false;
+    }
   });
 
   cv.addEventListener('pointermove', (e) => {
-    if (!dg) return;
-    if (!dg.on && Math.hypot(e.clientX - dg.cx, e.clientY - dg.cy) > 10) dg.on = true;
-    if (dg.on) {
-      const a = pc({ clientX: dg.cx, clientY: dg.cy });
-      const z = pc(e);
-      box = [a[0] * S, a[1] * S, z[0] * S, z[1] * S];
+    if (!activePointers.has(e.pointerId)) return;
+
+    const prev = activePointers.get(e.pointerId);
+    activePointers.set(e.pointerId, {
+      ...prev,
+      x: e.clientX,
+      y: e.clientY,
+    });
+
+    if (activePointers.size === 2) {
+      // Gesto multitáctil con 2 dedos: desplazar cámara (Pan) y zoom (Pinch)
+      const pts = Array.from(activePointers.values());
+      const newDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+
+      if (lastPinchDist && newDist > 0) {
+        const scale = newDist / lastPinchDist;
+        const oldZoom = camera.zoom;
+        const newZoom = Math.max(CONFIG.CAMERA.MIN_ZOOM, Math.min(CONFIG.CAMERA.MAX_ZOOM, oldZoom * scale));
+
+        const centerClientX = (pts[0].x + pts[1].x) / 2;
+        const centerClientY = (pts[0].y + pts[1].y) / 2;
+        const rect = cv.getBoundingClientRect();
+        const centerCanvasX = (centerClientX - rect.left) * (cv.width / rect.width);
+        const centerCanvasY = (centerClientY - rect.top) * (cv.height / rect.height);
+
+        camera.x += centerCanvasX / oldZoom - centerCanvasX / newZoom;
+        camera.y += centerCanvasY / oldZoom - centerCanvasY / newZoom;
+        camera.zoom = newZoom;
+      }
+      lastPinchDist = newDist;
+
+      // Pan con 2 dedos
+      const rect = cv.getBoundingClientRect();
+      const dx = ((e.clientX - prev.x) * (cv.width / rect.width)) / camera.zoom;
+      const dy = ((e.clientY - prev.y) * (cv.height / rect.height)) / camera.zoom;
+      camera.x -= dx / 2;
+      camera.y -= dy / 2;
+      clampCamera();
+    } else if (activePointers.size === 1 && !isPanning) {
+      // 1 dedo o ratón: recuadro de selección si se arrastra
+      const p = activePointers.get(e.pointerId);
+      const dist = Math.hypot(p.x - p.startX, p.y - p.startY);
+      if (dist > 8) {
+        const [wx0, wy0] = screenToWorld(p.startX, p.startY);
+        const [wx1, wy1] = screenToWorld(p.x, p.y);
+        box = [wx0, wy0, wx1, wy1];
+      }
     }
   });
 
-  cv.addEventListener('pointerup', (e) => {
-    if (!dg) return;
-    const d = dg;
-    dg = null;
-    box = null;
-    if (!d.on) {
-      tap(e);
-      return;
-    }
-    if (P.sel >= 0) return;
-    const a = pc({ clientX: d.cx, clientY: d.cy });
-    const z = pc(e);
-    const x0 = Math.min(a[0], z[0]);
-    const x1 = Math.max(a[0], z[0]);
-    const y0 = Math.min(a[1], z[1]);
-    const y1 = Math.max(a[1], z[1]);
-    const inn = U.filter((u) => u.t > 0 && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
-    U.forEach((u) => (u.s = inn.includes(u)));
-  });
+  const handlePointerUp = (e) => {
+    if (!activePointers.has(e.pointerId)) return;
+    const p = activePointers.get(e.pointerId);
+    activePointers.delete(e.pointerId);
 
-  cv.addEventListener('pointercancel', () => {
-    dg = null;
-    box = null;
-  });
+    if (activePointers.size < 2) {
+      lastPinchDist = null;
+    }
+
+    if (activePointers.size === 0) {
+      const dist = Math.hypot(p.x - p.startX, p.y - p.startY);
+      if (box) {
+        // Seleccionar unidades dentro del recuadro
+        const x0 = Math.min(box[0], box[2]);
+        const x1 = Math.max(box[0], box[2]);
+        const y0 = Math.min(box[1], box[3]);
+        const y1 = Math.max(box[1], box[3]);
+        const inn = U.filter((u) => u.t > 0 && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
+        U.forEach((u) => (u.s = inn.includes(u)));
+        box = null;
+      } else if (dist <= 8 && !isPanning) {
+        // Toque simple
+        const [wx, wy] = screenToWorld(p.x, p.y);
+        tap(wx, wy);
+      }
+      box = null;
+      isPanning = false;
+    }
+  };
+
+  cv.addEventListener('pointerup', handlePointerUp);
+  cv.addEventListener('pointercancel', handlePointerUp);
 }
