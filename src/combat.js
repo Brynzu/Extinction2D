@@ -48,7 +48,12 @@ export const vr = (e, o) => {
   return k === 4 && e.tr ? (o.tr && TC[ci(o)] === TC[ci(e)] ? 5 : 0) : k === 1 ? 3 : 8;
 };
 
-export const canSee = (x, y) => U.some((u) => u.t > 0 && Math.hypot(u.x - x, u.y - y) <= CONFIG.VISIBILITY.VISION_DEFAULT);
+export const canSee = (x, y) =>
+  U.some((u) => {
+    if (u.t <= 0) return false;
+    const vision = u.isDrone ? CONFIG.VISIBILITY.VISION_DRONE : CONFIG.VISIBILITY.VISION_DEFAULT;
+    return Math.hypot(u.x - x, u.y - y) <= vision;
+  });
 
 export function vis(dt) {
   for (const e of U) {
@@ -56,9 +61,12 @@ export function vis(dt) {
     e.seen = e.rev > 0;
     if (!e.seen) {
       for (const o of U) {
-        if (o.t !== e.t && Math.hypot(o.x - e.x, o.y - e.y) <= vr(e, o)) {
-          e.seen = true;
-          break;
+        if (o.t !== e.t) {
+          const vision = o.isDrone ? CONFIG.VISIBILITY.VISION_DRONE : vr(e, o);
+          if (Math.hypot(o.x - e.x, o.y - e.y) <= vision) {
+            e.seen = true;
+            break;
+          }
         }
       }
     }
