@@ -18,7 +18,7 @@ export function addUnit(t, x, y, targetX = x, targetY = y, isDrone = false) {
     tm: 0,
     hp: CONFIG.UNITS.DEFAULT_HP,
     mh: CONFIG.UNITS.DEFAULT_HP,
-    sp: isDrone ? 3 : 1,
+    sp: isDrone ? 4.5 : 1,
     isDrone,
     tr: false,
     path: [],
@@ -38,6 +38,7 @@ export function addUnit(t, x, y, targetX = x, targetY = y, isDrone = false) {
     ct: 0,
     auto: false,
     attackTarget: null,
+    savedMoveTarget: null, // Guardará { tx, ty, auto, enter, gc, path, exit, hold, post } al entrar en combate
   });
 }
 

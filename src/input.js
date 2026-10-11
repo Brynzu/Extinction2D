@@ -101,6 +101,7 @@ export function initInput(P) {
     if (enemyHit && selectedUnits.length > 0) {
       selectedUnits.forEach((u) => {
         u.attackTarget = enemyHit;
+        u.savedMoveTarget = null;
         u.auto = false;
         u.enter = false;
         u.hold = null;
@@ -137,6 +138,7 @@ export function initInput(P) {
 
     selectedUnits.forEach((u, i) => {
       u.attackTarget = null;
+      u.savedMoveTarget = null;
       const ox = cl(worldX + ((i % 3) - 1) * 1.3, 0.5, C - 0.5);
       const oy = cl(worldY + (Math.floor(i / 3) - 1) * 1.3, 0.5, R - 0.5);
       if (isT(cx, cy) && !u.isDrone) {
@@ -145,10 +147,24 @@ export function initInput(P) {
         if (dbl) {
           const p = bfs(Math.floor(u.x), Math.floor(u.y), (a, b) => T[b * C + a] === 3);
           if (p) {
-            u.path = p;
-            u.exit = [ox, oy];
-            u.hold = null;
-            u.post = null;
+            if (u.cb) {
+              u.savedMoveTarget = {
+                tx: u.tx,
+                ty: u.ty,
+                auto: u.auto,
+                enter: u.enter,
+                gc: u.gc,
+                path: p,
+                exit: [ox, oy],
+                hold: null,
+                post: null,
+              };
+            } else {
+              u.path = p;
+              u.exit = [ox, oy];
+              u.hold = null;
+              u.post = null;
+            }
           }
         }
       } else {

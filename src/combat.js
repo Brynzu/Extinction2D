@@ -148,14 +148,50 @@ export function updateCombat(dt) {
 
     const had = u.cb;
     u.cb = !!tg;
-    if (tg && !had) u.rd = Math.random() * CONFIG.COMBAT.REACTION_MAX;
+
+    // Cuando la infantería entra en combate por primera vez, si tenía una orden de movimiento activa,
+    // guardamos esa orden para retomarla cuando termine la batalla.
+    if (tg && !had) {
+      u.rd = Math.random() * CONFIG.COMBAT.REACTION_MAX;
+      if (!u.tr && !u.savedMoveTarget && Math.hypot(u.tx - u.x, u.ty - u.y) >= 0.3) {
+        u.savedMoveTarget = {
+          tx: u.tx,
+          ty: u.ty,
+          auto: u.auto,
+          enter: u.enter,
+          gc: u.gc,
+          path: u.path ? [...u.path] : [],
+          exit: u.exit ? [...u.exit] : null,
+          hold: u.hold,
+          post: u.post,
+        };
+      }
+    }
+
+    // Cuando termina el combate y la unidad vuelve a estar en paz:
+    if (!tg && had) {
+      if (u.savedMoveTarget) {
+        u.tx = u.savedMoveTarget.tx;
+        u.ty = u.savedMoveTarget.ty;
+        u.auto = u.savedMoveTarget.auto;
+        u.enter = u.savedMoveTarget.enter;
+        u.gc = u.savedMoveTarget.gc;
+        u.path = u.savedMoveTarget.path;
+        u.exit = u.savedMoveTarget.exit;
+        u.hold = u.savedMoveTarget.hold;
+        u.post = u.savedMoveTarget.post;
+        u.savedMoveTarget = null;
+      }
+    }
+
     if (u.rd > 0) u.rd -= dt;
 
     if (tg && bd > 0 && !u.tr && !u.enter && (u.ct -= dt) <= 0) {
       u.ct = 0.5;
       const nx = (tg.x - u.x) / bd;
       const ny = (tg.y - u.y) / bd;
-      if (tt(u.x + nx * 0.9, u.y + ny * 0.9) !== 1 && (u.t < 0 || u.auto || Math.hypot(u.tx - u.x, u.ty - u.y) < 0.3)) {
+      // Si la unidad no está en cobertura de árbol, buscar árbol cercano e ir hacia él ignorando la orden de marcha mientras combate
+      if (tt(u.x + nx * 0.9, u.y + ny * 0.9) !== 1) {
         let best = null;
         let bs = 16;
         for (let j = -4; j <= 4; j++) {
