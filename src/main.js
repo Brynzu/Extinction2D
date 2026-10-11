@@ -127,12 +127,15 @@ function step(now) {
       }
     }
 
-    const r = CONFIG.GAME.TERRITORY_PUSH_RADIUS;
-    for (let j = Math.max(0, Math.floor(u.y - r)); j <= Math.min(R - 1, Math.floor(u.y + r)); j++) {
-      for (let i = Math.max(0, Math.floor(u.x - r)); i <= Math.min(C - 1, Math.floor(u.x + r)); i++) {
-        if (Math.hypot(i + 0.5 - u.x, j + 0.5 - u.y) <= r) {
-          const k = j * C + i;
-          v[k] = cl(v[k] + u.t * dt * CONFIG.GAME.TERRITORY_PUSH_SPEED, -1, 1);
+    // Los drones no capturan territorio
+    if (!u.isDrone) {
+      const r = CONFIG.GAME.TERRITORY_PUSH_RADIUS;
+      for (let j = Math.max(0, Math.floor(u.y - r)); j <= Math.min(R - 1, Math.floor(u.y + r)); j++) {
+        for (let i = Math.max(0, Math.floor(u.x - r)); i <= Math.min(C - 1, Math.floor(u.x + r)); i++) {
+          if (Math.hypot(i + 0.5 - u.x, j + 0.5 - u.y) <= r) {
+            const k = j * C + i;
+            v[k] = cl(v[k] + u.t * dt * CONFIG.GAME.TERRITORY_PUSH_SPEED, -1, 1);
+          }
         }
       }
     }

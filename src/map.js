@@ -118,10 +118,10 @@ export function initMap() {
     blob(10 + Math.random() * (C - 20), 6 + Math.random() * (R - 12), 2 + Math.random() * 2);
   }
 
-  // Generar varias redes lineales de trincheras a lo largo del frente central
-  const numClusters = 7;
+  // Generar varias redes lineales de trincheras a lo largo del frente central (disminuido en un 50%)
+  const numClusters = 3;
   for (let i = 0; i < numClusters; i++) {
-    const clusterX = Math.floor(25 + (i * (C - 50)) / numClusters + Math.random() * 6);
+    const clusterX = Math.floor(30 + (i * (C - 60)) / numClusters + Math.random() * 6);
     const clusterY = Math.floor(15 + Math.random() * (R - 30));
     generateLinearTrenchNetwork(clusterX, clusterY);
   }
