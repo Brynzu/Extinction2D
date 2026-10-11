@@ -24,58 +24,88 @@ function blob(cx, cy, r) {
   }
 }
 
-// Genera una red de trincheras orgánicas estilo "raíz" con bifurcaciones, ramificaciones y celdas superficiales/bajas
-function generateRootTrenchCluster(startX, startY) {
-  const visited = new Set();
-  const queue = [{ x: startX, y: startY, depth: 0, dir: Math.floor(Math.random() * 4) }];
-
-  const dirs = [
-    [1, 0], [-1, 0], [0, 1], [0, -1]
+function wouldForm2x2(x, y) {
+  const quads = [
+    [[0, 0], [1, 0], [0, 1], [1, 1]],
+    [[-1, 0], [0, 0], [-1, 1], [0, 1]],
+    [[0, -1], [1, -1], [0, 0], [1, 0]],
+    [[-1, -1], [0, -1], [-1, 0], [0, 0]]
   ];
+  for (const q of quads) {
+    let count = 0;
+    for (const [dx, dy] of q) {
+      if (dx === 0 && dy === 0) continue;
+      if (isT(x + dx, y + dy)) count++;
+    }
+    if (count === 3) return true;
+  }
+  return false;
+}
 
-  const maxCells = 35 + Math.floor(Math.random() * 25);
-  let count = 0;
+// Genera una red de trincheras lineales con ramificaciones estrechas (1 casilla de ancho)
+function generateLinearTrenchNetwork(startX, startY) {
+  const cells = [];
+  const isHorizontal = Math.random() < 0.5;
+  const mainDir = isHorizontal ? (Math.random() < 0.5 ? [1, 0] : [-1, 0]) : (Math.random() < 0.5 ? [0, 1] : [0, -1]);
 
-  while (queue.length > 0 && count < maxCells) {
-    const idx = Math.floor(Math.random() * queue.length);
-    const curr = queue.splice(idx, 1)[0];
-    const key = `${curr.x},${curr.y}`;
+  let cx = startX;
+  let cy = startY;
+  const mainLength = 14 + Math.floor(Math.random() * 12);
 
-    if (curr.x < 15 || curr.x >= C - 15 || curr.y < 8 || curr.y >= R - 8 || visited.has(key)) {
-      continue;
+  for (let i = 0; i < mainLength; i++) {
+    if (cx < 15 || cx >= C - 15 || cy < 8 || cy >= R - 8) break;
+    if (!wouldForm2x2(cx, cy)) {
+      T[cy * C + cx] = 4;
+      cells.push([cx, cy, i]);
     }
 
-    visited.add(key);
-    count++;
+    // Ramificaciones ortogonales
+    if (i > 1 && i < mainLength - 2 && Math.random() < 0.45) {
+      const branchDirs = isHorizontal ? [[0, 1], [0, -1]] : [[1, 0], [-1, 0]];
+      const bDir = branchDirs[Math.floor(Math.random() * branchDirs.length)];
+      let bx = cx + bDir[0];
+      let by = cy + bDir[1];
+      const branchLength = 4 + Math.floor(Math.random() * 6);
 
-    // Las celdas terminales o con pocos vecinos son superficiales (T=3), el interior es baja (T=4)
-    T[curr.y * C + curr.x] = 4;
-
-    // Agregar vecinos para formar ramas estilo raíz
-    for (let d = 0; d < 4; d++) {
-      const nx = curr.x + dirs[d][0];
-      const ny = curr.y + dirs[d][1];
-      const nKey = `${nx},${ny}`;
-
-      if (nx >= 15 && nx < C - 15 && ny >= 8 && ny < R - 8 && !visited.has(nKey)) {
-        // Mayor probabilidad de continuar en la misma dirección que bifurcar
-        const prob = d === curr.dir ? 0.7 : 0.35;
-        if (Math.random() < prob) {
-          queue.push({ x: nx, y: ny, depth: curr.depth + 1, dir: d });
+      for (let j = 0; j < branchLength; j++) {
+        if (bx < 15 || bx >= C - 15 || by < 8 || by >= R - 8) break;
+        if (!wouldForm2x2(bx, by)) {
+          T[by * C + bx] = 4;
+          cells.push([bx, by, j]);
+        } else {
+          break;
         }
+
+        // Sub-ramificación ocasional
+        if (j === branchLength - 1 && Math.random() < 0.5) {
+          const subDirs = isHorizontal ? [[1, 0], [-1, 0]] : [[0, 1], [0, -1]];
+          const sDir = subDirs[Math.floor(Math.random() * subDirs.length)];
+          const sx = bx + sDir[0];
+          const sy = by + sDir[1];
+          if (sx >= 15 && sx < C - 15 && sy >= 8 && sy < R - 8 && !wouldForm2x2(sx, sy)) {
+            T[sy * C + sx] = 4;
+            cells.push([sx, sy, 0]);
+          }
+        }
+        bx += bDir[0];
+        by += bDir[1];
       }
     }
+
+    cx += mainDir[0];
+    cy += mainDir[1];
   }
 
-  // Marcar los extremos o bordes de las ramas como trincheras superficiales (T=3)
-  for (const key of visited) {
-    const [x, y] = key.split(',').map(Number);
-    let neighbors = 0;
+  // Asignar celdas superficiales (1 / T=3) en extremos y periódicamente
+  for (const [x, y, idx] of cells) {
+    let neighborCount = 0;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     for (const [dx, dy] of dirs) {
-      if (isT(x + dx, y + dy)) neighbors++;
+      if (isT(x + dx, y + dy)) neighborCount++;
     }
-    if (neighbors <= 2 || Math.random() < 0.3) {
-      T[y * C + x] = 3; // Superficial / Entrada
+    // Extremos (1 vecino) o posiciones periódicas (entradas/posiciones de tiro)
+    if (neighborCount <= 1 || idx % 3 === 0) {
+      T[y * C + x] = 3;
     }
   }
 }
@@ -88,12 +118,12 @@ export function initMap() {
     blob(10 + Math.random() * (C - 20), 6 + Math.random() * (R - 12), 2 + Math.random() * 2);
   }
 
-  // Generar varias redes orgánicas de trincheras tipo "raíz" a lo largo del frente central
+  // Generar varias redes lineales de trincheras a lo largo del frente central
   const numClusters = 7;
   for (let i = 0; i < numClusters; i++) {
     const clusterX = Math.floor(25 + (i * (C - 50)) / numClusters + Math.random() * 6);
     const clusterY = Math.floor(15 + Math.random() * (R - 30));
-    generateRootTrenchCluster(clusterX, clusterY);
+    generateLinearTrenchNetwork(clusterX, clusterY);
   }
 
   // Inicializar territorio en formato horizontal
