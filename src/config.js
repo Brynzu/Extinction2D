@@ -1,29 +1,29 @@
 export const CONFIG = {
-  // Configuración de la cuadrícula (mapa 10 veces más grande: 80x120 celdas)
+  // Configuración de la cuadrícula horizontal (120x80 celdas)
   GRID: {
-    COLUMNS: 80,
-    ROWS: 120,
+    COLUMNS: 120,
+    ROWS: 80,
     CELL_SIZE: 20,
   },
 
-  // Configuración de los HQs y Puntos de Spawn
+  // Configuración de los HQs y Puntos de Spawn (Horizontal: Azul Izquierda, Rojo Derecha)
   HQ: {
-    BLUE_SPAWN: { x: 2, y: 118 },
-    BLUE_HQ: { x: 12, y: 108 },
-    RED_SPAWN: { x: 78, y: 2 },
-    RED_HQ: { x: 68, y: 12 },
+    BLUE_SPAWN: { x: 2, y: 78 },
+    BLUE_HQ: { x: 12, y: 40 },
+    RED_SPAWN: { x: 118, y: 2 },
+    RED_HQ: { x: 108, y: 40 },
   },
 
   // Configuración de cámara
   CAMERA: {
     MIN_ZOOM: 0.35,
     MAX_ZOOM: 2.0,
-    DEFAULT_ZOOM: 0.6,
+    DEFAULT_ZOOM: 0.65,
   },
 
   // Configuración de territorio y recursos
   GAME: {
-    MAX_UNITS_PER_SIDE: 40,
+    MAX_UNITS_PER_SIDE: 45,
     INITIAL_RESOURCES: 5,
     MAX_RESOURCES: 10,
     RESOURCE_BASE_RATE: 0.4,
@@ -35,16 +35,16 @@ export const CONFIG = {
 
   // Cartas de despliegue
   CARDS: [
-    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 8 },
-    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 8 },
-    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 8 },
-    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 8 },
+    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 8, isDrone: false },
+    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 8, isDrone: false },
+    { n: 'Dron Kamikaze', k: 1, hp: 1, sp: 3, c: 2, cd: 6, isDrone: true },
+    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 8, isDrone: false },
   ],
 
   // Atributos y movimiento de unidades
   UNITS: {
     DEFAULT_HP: 3,
-    DRAW_RADIUS: 0.3,
+    DRAW_RADIUS: 0.27, // Reducido 10% (0.3 * 0.9 = 0.27)
     SEPARATION_DIST: 0.55,
     SPEED_BLUE: 2.5,
     SPEED_RED: 1.6,
@@ -53,14 +53,15 @@ export const CONFIG = {
 
   // Combate y proyectiles
   COMBAT: {
-    RANGE_DEFAULT: 7,
-    RANGE_FOREST: 3,
+    RANGE_DEFAULT: 8.05, // +15% (7 * 1.15 = 8.05)
+    RANGE_FOREST: 3.45,  // +15% (3 * 1.15 = 3.45)
     ATTACK_COOLDOWN: 1,
     REACTION_MAX: 0.5,
-    BULLET_SPEED: 22,
+    BULLET_SPEED: 26.4, // +20% (22 * 1.20 = 26.4)
     BULLET_LIFETIME: 0.5,
     BULLET_DAMAGE: 1,
     BULLET_HIT_RADIUS: 0.6,
+    BULLET_WIDTH: 1.275, // -15% grosor
     DISPERSION_BASE: 0.08,
     DISPERSION_DIST: 0.02,
     DISPERSION_MOVING_MULT: 1.5,
