@@ -27,8 +27,25 @@ export const pbEl = document.getElementById('pb');
 export const prEl = document.getElementById('pr');
 export const bb = document.getElementById('bb');
 export const br = document.getElementById('br');
+export const modal = document.getElementById('game-over-modal');
+export const goTitle = document.getElementById('go-title');
+export const goDesc = document.getElementById('go-desc');
+export const goBtn = document.getElementById('go-btn');
 
 let msgTimeout = null;
+
+export function showGameOver(isVictory, reason) {
+  if (!modal) return;
+  modal.style.display = 'flex';
+  goTitle.textContent = isVictory ? '¡VICTORIA!' : '¡DERROTA!';
+  goTitle.style.color = isVictory ? 'var(--bl)' : 'var(--rd)';
+  goDesc.textContent = reason;
+}
+
+export function hideGameOver() {
+  if (!modal) return;
+  modal.style.display = 'none';
+}
 
 export function msg(t) {
   hint.textContent = t;
