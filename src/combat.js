@@ -184,7 +184,8 @@ export function updateCombat(dt) {
           2 *
           (CONFIG.COMBAT.DISPERSION_BASE + CONFIG.COMBAT.DISPERSION_DIST * bd) *
           (Math.hypot(u.tx - u.x, u.ty - u.y) > 0.1 ? CONFIG.COMBAT.DISPERSION_MOVING_MULT : 1) *
-          (deep(u) ? CONFIG.COMBAT.DISPERSION_TRENCH_DEEP_MULT : 1);
+          (deep(u) ? CONFIG.COMBAT.DISPERSION_TRENCH_DEEP_MULT : 1) *
+          (tg.isDrone ? CONFIG.COMBAT.DISPERSION_DRONE_MULT : 1);
 
       B.push({
         x: u.x,

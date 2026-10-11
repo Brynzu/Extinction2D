@@ -66,6 +66,7 @@ export const CONFIG = {
     DISPERSION_DIST: 0.02,
     DISPERSION_MOVING_MULT: 1.5,
     DISPERSION_TRENCH_DEEP_MULT: 0.45,
+    DISPERSION_DRONE_MULT: 1.40, // 40% menos precisión al disparar a drones
     TRENCH_SHALLOW_DAMAGE_MULT: 0.3,
     SHOT_REVEAL_TIME: 0.8,
   },

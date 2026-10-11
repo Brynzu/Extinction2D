@@ -24,38 +24,82 @@ function blob(cx, cy, r) {
   }
 }
 
-export function initMap() {
-  T.fill(0);
+// Genera una red de trincheras orgánicas estilo "raíz" con bifurcaciones, ramificaciones y celdas superficiales/bajas
+function generateRootTrenchCluster(startX, startY) {
+  const visited = new Set();
+  const queue = [{ x: startX, y: startY, depth: 0, dir: Math.floor(Math.random() * 4) }];
 
-  // Generar bosques distribuidos en el mapa horizontal (120x80)
-  for (let i = 0; i < 35; i++) {
-    blob(10 + Math.random() * (C - 20), 6 + Math.random() * (R - 12), 2 + Math.random() * 2);
-  }
+  const dirs = [
+    [1, 0], [-1, 0], [0, 1], [0, -1]
+  ];
 
-  // Generar varias líneas verticales/horizontales de trincheras en el frente central
-  const numLines = 8;
-  for (let i = 0; i < numLines; i++) {
-    const x = Math.floor(20 + i * 11 + Math.random() * 3);
-    if (x >= C - 15) continue;
-    const y0 = Math.floor(Math.random() * (R - 20));
-    const n = 12 + Math.floor(Math.random() * 8);
-    for (let y = y0; y < y0 + n && y < R; y++) {
-      T[y * C + x] = (y < y0 + 2 || y >= y0 + n - 2) ? 3 : 4;
+  const maxCells = 35 + Math.floor(Math.random() * 25);
+  let count = 0;
+
+  while (queue.length > 0 && count < maxCells) {
+    const idx = Math.floor(Math.random() * queue.length);
+    const curr = queue.splice(idx, 1)[0];
+    const key = `${curr.x},${curr.y}`;
+
+    if (curr.x < 15 || curr.x >= C - 15 || curr.y < 8 || curr.y >= R - 8 || visited.has(key)) {
+      continue;
     }
-    const by = y0 + 3 + Math.floor(Math.random() * (n - 6));
-    const dx = i % 2 ? 1 : -1;
-    for (let k = 1; k <= 5; k++) {
-      const xx = x + dx * k;
-      if (xx >= 0 && xx < C) {
-        T[by * C + xx] = k === 5 ? 3 : 4;
+
+    visited.add(key);
+    count++;
+
+    // Las celdas terminales o con pocos vecinos son superficiales (T=3), el interior es baja (T=4)
+    T[curr.y * C + curr.x] = 4;
+
+    // Agregar vecinos para formar ramas estilo raíz
+    for (let d = 0; d < 4; d++) {
+      const nx = curr.x + dirs[d][0];
+      const ny = curr.y + dirs[d][1];
+      const nKey = `${nx},${ny}`;
+
+      if (nx >= 15 && nx < C - 15 && ny >= 8 && ny < R - 8 && !visited.has(nKey)) {
+        // Mayor probabilidad de continuar en la misma dirección que bifurcar
+        const prob = d === curr.dir ? 0.7 : 0.35;
+        if (Math.random() < prob) {
+          queue.push({ x: nx, y: ny, depth: curr.depth + 1, dir: d });
+        }
       }
     }
   }
 
-  // Inicializar territorio en formato horizontal: azul a la izquierda (primeras 30 columnas), rojo a la derecha (últimas 30 columnas)
+  // Marcar los extremos o bordes de las ramas como trincheras superficiales (T=3)
+  for (const key of visited) {
+    const [x, y] = key.split(',').map(Number);
+    let neighbors = 0;
+    for (const [dx, dy] of dirs) {
+      if (isT(x + dx, y + dy)) neighbors++;
+    }
+    if (neighbors <= 2 || Math.random() < 0.3) {
+      T[y * C + x] = 3; // Superficial / Entrada
+    }
+  }
+}
+
+export function initMap() {
+  T.fill(0);
+
+  // Generar bosques distribuidos
+  for (let i = 0; i < 35; i++) {
+    blob(10 + Math.random() * (C - 20), 6 + Math.random() * (R - 12), 2 + Math.random() * 2);
+  }
+
+  // Generar varias redes orgánicas de trincheras tipo "raíz" a lo largo del frente central
+  const numClusters = 7;
+  for (let i = 0; i < numClusters; i++) {
+    const clusterX = Math.floor(25 + (i * (C - 50)) / numClusters + Math.random() * 6);
+    const clusterY = Math.floor(15 + Math.random() * (R - 30));
+    generateRootTrenchCluster(clusterX, clusterY);
+  }
+
+  // Inicializar territorio en formato horizontal
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
-      v[y * C + x] = x < 30 ? 1 : x >= 90 ? -1 : 0;
+      v[y * C + x] = x < 35 ? 1 : x >= 85 ? -1 : 0;
     }
   }
 
