@@ -66,16 +66,25 @@ export function aiTrench() {
     }
   }
 
-  // Hacer que las unidades rojas sueltas avancen tácticamente hacia el frente y HQ Azul
+  // Hacer que las unidades rojas sueltas (o por escuadres) avancen tácticamente hacia el frente y HQ Azul
+  const handledSquads = new Set();
   for (const u of redUnits) {
     if (u.gar && u.tr && !u.path.length && !u.exit && Math.hypot(u.tx - u.x, u.ty - u.y) < 0.7) {
       patrol(u, v);
     } else if (!u.gar && !u.tr && !u.cb && Math.hypot(u.tx - u.x, u.ty - u.y) < 1.0) {
-      // Avanzar tácticamente hacia el territorio del jugador (Azul) y su HQ
+      if (u.squadId > 0 && handledSquads.has(u.squadId)) continue;
+      if (u.squadId > 0) handledSquads.add(u.squadId);
+
       const targetX = Math.max(10, u.x - (8 + Math.random() * 15));
       const targetY = cl(u.y + (Math.random() - 0.5) * 20, 10, R - 10);
-      u.tx = targetX;
-      u.ty = targetY;
+
+      const squadMembers = u.squadId > 0 ? redUnits.filter((w) => w.squadId === u.squadId) : [u];
+      squadMembers.forEach((member, k) => {
+        const ox = cl(targetX + ((k % 2) - 0.5) * 1.3, 0.5, C - 0.5);
+        const oy = cl(targetY + (Math.floor(k / 2) - 0.5) * 1.3, 0.5, R - 0.5);
+        member.tx = ox;
+        member.ty = oy;
+      });
     }
   }
 }

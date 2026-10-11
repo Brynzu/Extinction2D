@@ -113,7 +113,7 @@ export function initInput(P) {
       return;
     }
 
-    // Si NO hay unidades seleccionadas aún, tocar una unidad propia la selecciona
+    // Si NO hay unidades seleccionadas aún, tocar una unidad propia la selecciona a ella o a toda su escuadra
     if (selectedUnits.length === 0) {
       const ownHit = U.filter((u) => u.t > 0 && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
         (p, q) => Math.hypot(p.x - worldX, p.y - worldY) - Math.hypot(q.x - worldX, q.y - worldY)
@@ -173,8 +173,25 @@ export function initInput(P) {
         u.hold = null;
         u.post = null;
         const bad = isT(Math.floor(ox), Math.floor(oy));
-        u.tx = u.isDrone ? worldX : bad ? worldX : ox;
-        u.ty = u.isDrone ? worldY : bad ? worldY : oy;
+        const targetX = u.isDrone ? worldX : bad ? worldX : ox;
+        const targetY = u.isDrone ? worldY : bad ? worldY : oy;
+
+        if (u.cb) {
+          u.savedMoveTarget = {
+            tx: targetX,
+            ty: targetY,
+            auto: false,
+            enter: false,
+            gc: null,
+            path: [],
+            exit: null,
+            hold: null,
+            post: null,
+          };
+        } else {
+          u.tx = targetX;
+          u.ty = targetY;
+        }
       }
     });
   };

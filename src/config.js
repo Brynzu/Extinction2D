@@ -35,10 +35,10 @@ export const CONFIG = {
 
   // Cartas de despliegue
   CARDS: [
-    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false }, // Cooldown x2
-    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
+    { n: 'Escuadrón Asalto', k: 4, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
+    { n: 'Escuadrón Asalto', k: 4, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
     { n: 'Dron Kamikaze', k: 1, hp: 1, sp: 4.5, c: 2, cd: 6, isDrone: true },
-    { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
+    { n: 'Escuadrón Asalto', k: 4, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
   ],
 
   // Atributos y movimiento de unidades

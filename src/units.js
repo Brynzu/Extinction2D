@@ -7,7 +7,9 @@ export const CARDS = CONFIG.CARDS;
 export const cl = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
 export const cnt = (t) => U.filter((u) => u.t === t).length;
 
-export function addUnit(t, x, y, targetX = x, targetY = y, isDrone = false) {
+let nextSquadId = 1;
+
+export function addUnit(t, x, y, targetX = x, targetY = y, isDrone = false, squadId = 0, role = 'rifleman') {
   U.push({
     t,
     x,
@@ -20,6 +22,9 @@ export function addUnit(t, x, y, targetX = x, targetY = y, isDrone = false) {
     mh: CONFIG.UNITS.DEFAULT_HP,
     sp: isDrone ? 4.5 : 1,
     isDrone,
+    squadId,
+    role, // 'rifleman' | 'machinegunner' | 'grenadier'
+    grenadeCd: 0,
     tr: false,
     path: [],
     exit: null,
@@ -47,13 +52,18 @@ export function deploy(t, cardIndex) {
   const spawnPos = t > 0 ? CONFIG.HQ.BLUE_SPAWN : CONFIG.HQ.RED_SPAWN;
   const hqPos = t > 0 ? CONFIG.HQ.BLUE_HQ : CONFIG.HQ.RED_HQ;
 
-  for (let k = 0; k < c.k; k++) {
-    const startX = cl(spawnPos.x + ((k % 3) - 1) * 1.2, 0.5, C - 0.5);
-    const startY = cl(spawnPos.y + (Math.floor(k / 3) - 0.5) * 1.2, 0.5, R - 0.5);
-    const targetX = cl(hqPos.x + ((k % 3) - 1) * 1.2, 0.5, C - 0.5);
-    const targetY = cl(hqPos.y + (Math.floor(k / 3) - 0.5) * 1.2, 0.5, R - 0.5);
+  const squadId = c.isDrone ? 0 : nextSquadId++;
+  // Roles para escuadrón de asalto de 4 miembros: 1 machinegunner, 1 grenadier, 2 riflemen
+  const roles = c.isDrone ? ['drone'] : ['machinegunner', 'grenadier', 'rifleman', 'rifleman'];
 
-    addUnit(t, startX, startY, targetX, targetY, c.isDrone);
+  for (let k = 0; k < c.k; k++) {
+    const startX = cl(spawnPos.x + ((k % 2) - 0.5) * 1.2, 0.5, C - 0.5);
+    const startY = cl(spawnPos.y + (Math.floor(k / 2) - 0.5) * 1.2, 0.5, R - 0.5);
+    const targetX = cl(hqPos.x + ((k % 2) - 0.5) * 1.2, 0.5, C - 0.5);
+    const targetY = cl(hqPos.y + (Math.floor(k / 2) - 0.5) * 1.2, 0.5, R - 0.5);
+
+    const role = roles[k % roles.length];
+    addUnit(t, startX, startY, targetX, targetY, c.isDrone, squadId, role);
     const u = U[U.length - 1];
     u.hp = u.mh = c.hp;
     u.sp = c.sp;

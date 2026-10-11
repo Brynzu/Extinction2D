@@ -221,12 +221,27 @@ export function updateCombat(dt) {
       }
     }
 
+    // Disminuir tiempo de recarga de granada
+    if (u.grenadeCd > 0) u.grenadeCd -= dt;
+
+    // Lógica especial de lanzamiento de granada para el rol Granadero
+    if (u.role === 'grenadier' && tg && bd <= 7.0 && u.grenadeCd <= 0 && u.rd <= 0) {
+      u.grenadeCd = 8.0; // Cooldown de 8 segundos por granada
+      triggerExplosion(tg.x, tg.y);
+      u.rev = CONFIG.COMBAT.SHOT_REVEAL_TIME;
+    }
+
     if (tg && bd > 0 && u.cd <= 0 && u.rd <= 0) {
+      const isLmg = u.role === 'machinegunner';
+      const dispersionMult = isLmg ? 1.2 : 1.0;
+      const attackCooldown = isLmg ? 0.35 : CONFIG.COMBAT.ATTACK_COOLDOWN; // Ametralladora ligera: alta cadencia
+
       const an =
         Math.atan2(tg.y - u.y, tg.x - u.x) +
         (Math.random() - 0.5) *
           2 *
           (CONFIG.COMBAT.DISPERSION_BASE + CONFIG.COMBAT.DISPERSION_DIST * bd) *
+          dispersionMult *
           (Math.hypot(u.tx - u.x, u.ty - u.y) > 0.1 ? CONFIG.COMBAT.DISPERSION_MOVING_MULT : 1) *
           (deep(u) ? CONFIG.COMBAT.DISPERSION_TRENCH_DEEP_MULT : 1) *
           (tg.isDrone ? CONFIG.COMBAT.DISPERSION_DRONE_MULT : 1);
@@ -244,7 +259,7 @@ export function updateCombat(dt) {
         l: CONFIG.COMBAT.BULLET_LIFETIME,
       });
       sounds.playShot();
-      u.cd = CONFIG.COMBAT.ATTACK_COOLDOWN;
+      u.cd = attackCooldown;
       u.rev = CONFIG.COMBAT.SHOT_REVEAL_TIME;
     }
   }
