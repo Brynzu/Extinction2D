@@ -25,43 +25,47 @@ function blob(cx, cy, r) {
 }
 
 export function initMap() {
-  // Generar bosques
-  for (let i = 0; i < 10; i++) {
-    blob(2 + Math.random() * (C - 4), 6 + Math.random() * (R - 12), 1.5 + Math.random() * 1.5);
+  T.fill(0);
+
+  // Generar bosques distribuidos en el mapa ampliado
+  for (let i = 0; i < 30; i++) {
+    blob(4 + Math.random() * (C - 8), 10 + Math.random() * (R - 20), 2 + Math.random() * 2);
   }
 
-  // Generar trincheras
-  for (let i = 0; i < 3; i++) {
-    const y = 12 + i * 6;
-    const x0 = Math.floor(Math.random() * 8);
-    const n = 10 + Math.floor(Math.random() * 4);
+  // Generar varias líneas y redes de trincheras a lo largo del mapa
+  const numLines = 8;
+  for (let i = 0; i < numLines; i++) {
+    const y = Math.floor(15 + i * 12 + Math.random() * 4);
+    if (y >= R - 10) continue;
+    const x0 = Math.floor(Math.random() * (C - 20));
+    const n = 12 + Math.floor(Math.random() * 8);
     for (let x = x0; x < x0 + n && x < C; x++) {
       T[y * C + x] = (x < x0 + 2 || x >= x0 + n - 2) ? 3 : 4;
     }
     const bx = x0 + 3 + Math.floor(Math.random() * (n - 6));
     const dy = i % 2 ? 1 : -1;
-    for (let k = 1; k <= 4; k++) {
+    for (let k = 1; k <= 5; k++) {
       const yy = y + dy * k;
       if (yy >= 0 && yy < R) {
-        T[yy * C + bx] = k === 4 ? 3 : 4;
+        T[yy * C + bx] = k === 5 ? 3 : 4;
       }
     }
   }
 
-  // Inicializar territorio: rojo arriba, azul abajo
+  // Inicializar territorio: rojo arriba (primeras 30 filas), azul abajo (últimas 30 filas)
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
-      v[y * C + x] = y < 9 ? -1 : y >= 27 ? 1 : 0;
+      v[y * C + x] = y < 30 ? -1 : y >= 90 ? 1 : 0;
     }
   }
 
-  // Lista de celdas de trinchera
+  // Celdas de trinchera
   TRL.length = 0;
   for (let i = 0; i < C * R; i++) {
     if (T[i] >= 3) TRL.push(i);
   }
 
-  // Componentes conexos de trincheras (TC)
+  // Componentes conexos TC
   TC.fill(-1);
   let nc = 0;
   for (const s0 of TRL) {

@@ -7,13 +7,13 @@ export const CARDS = CONFIG.CARDS;
 export const cl = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
 export const cnt = (t) => U.filter((u) => u.t === t).length;
 
-export function addUnit(t, x, y) {
+export function addUnit(t, x, y, targetX = x, targetY = y) {
   U.push({
     t,
     x,
     y,
-    tx: x,
-    ty: y,
+    tx: targetX,
+    ty: targetY,
     s: false,
     tm: 0,
     hp: CONFIG.UNITS.DEFAULT_HP,
@@ -39,10 +39,18 @@ export function addUnit(t, x, y) {
   });
 }
 
-export function deploy(t, i, x, y) {
-  const c = CARDS[i];
+export function deploy(t, cardIndex) {
+  const c = CARDS[cardIndex];
+  const spawnPos = t > 0 ? CONFIG.HQ.BLUE_SPAWN : CONFIG.HQ.RED_SPAWN;
+  const hqPos = t > 0 ? CONFIG.HQ.BLUE_HQ : CONFIG.HQ.RED_HQ;
+
   for (let k = 0; k < c.k; k++) {
-    addUnit(t, cl(x + ((k % 3) - 1) * 1.2, 0.5, C - 0.5), cl(y + (Math.floor(k / 3) - 0.5) * 1.2, 0.5, R - 0.5));
+    const startX = cl(spawnPos.x + ((k % 3) - 1) * 1.2, 0.5, C - 0.5);
+    const startY = cl(spawnPos.y + (Math.floor(k / 3) - 0.5) * 1.2, 0.5, R - 0.5);
+    const targetX = cl(hqPos.x + ((k % 3) - 1) * 1.2, 0.5, C - 0.5);
+    const targetY = cl(hqPos.y + (Math.floor(k / 3) - 0.5) * 1.2, 0.5, R - 0.5);
+
+    addUnit(t, startX, startY, targetX, targetY);
     const u = U[U.length - 1];
     u.hp = u.mh = c.hp;
     u.sp = c.sp;

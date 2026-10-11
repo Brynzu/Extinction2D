@@ -1,14 +1,29 @@
 export const CONFIG = {
-  // Configuración de la cuadrícula
+  // Configuración de la cuadrícula (mapa 10 veces más grande: 80x120 celdas)
   GRID: {
-    COLUMNS: 24,
-    ROWS: 36,
+    COLUMNS: 80,
+    ROWS: 120,
     CELL_SIZE: 20,
+  },
+
+  // Configuración de los HQs y Puntos de Spawn
+  HQ: {
+    BLUE_SPAWN: { x: 2, y: 118 },
+    BLUE_HQ: { x: 12, y: 108 },
+    RED_SPAWN: { x: 78, y: 2 },
+    RED_HQ: { x: 68, y: 12 },
+  },
+
+  // Configuración de cámara
+  CAMERA: {
+    MIN_ZOOM: 0.35,
+    MAX_ZOOM: 2.0,
+    DEFAULT_ZOOM: 0.6,
   },
 
   // Configuración de territorio y recursos
   GAME: {
-    MAX_UNITS_PER_SIDE: 25,
+    MAX_UNITS_PER_SIDE: 40,
     INITIAL_RESOURCES: 5,
     MAX_RESOURCES: 10,
     RESOURCE_BASE_RATE: 0.4,
