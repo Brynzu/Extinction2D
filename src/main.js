@@ -1,9 +1,9 @@
 import { aiPlay, aiTrench } from './ai.js';
-import { updateCombat, vis } from './combat.js';
+import { clearBullets, updateCombat, vis } from './combat.js';
 import { CONFIG } from './config.js';
 import { getBox, initInput } from './input.js';
 import { C, R, T, isT, initMap, v } from './map.js';
-import { draw, initCardsUI, ui } from './render.js';
+import { draw, goBtn, hideGameOver, initCardsUI, showGameOver, ui } from './render.js';
 import { bfs, postTick, wpt } from './trenches.js';
 import { U, addUnit, cl, sep } from './units.js';
 
@@ -14,13 +14,33 @@ let nb = 0;
 let nr = 0;
 let pt = 0;
 let last = performance.now();
+let isGameOver = false;
+let animFrameId = null;
+
+if (goBtn) {
+  goBtn.onclick = () => {
+    restartGame();
+  };
+}
 
 const rate = (t) => CONFIG.GAME.RESOURCE_BASE_RATE + CONFIG.GAME.RESOURCE_TERRITORY_RATE * (t > 0 ? nb : nr) / (C * R);
 
 export function initGame() {
+  hideGameOver();
+  isGameOver = false;
+  P.res = CONFIG.GAME.INITIAL_RESOURCES;
+  P.cds = [0, 0, 0, 0];
+  P.sel = -1;
+  E.res = CONFIG.GAME.INITIAL_RESOURCES;
+  E.cds = [0, 0, 0, 0];
+  E.tm = 3;
+  E.gt = 5;
+
+  U.length = 0;
+  clearBullets();
   initMap();
 
-  // Inicializar unidades iniciales (5 azules abajo, 5 rojas arriba)
+  // Inicializar unidades iniciales (5 azules izquierda, 5 rojas derecha)
   for (let i = 0; i < 5; i++) {
     addUnit(1, CONFIG.HQ.BLUE_HQ.x + (i - 2) * 2, CONFIG.HQ.BLUE_HQ.y - 2);
     addUnit(-1, CONFIG.HQ.RED_HQ.x + (i - 2) * 2, CONFIG.HQ.RED_HQ.y + 2);
@@ -29,7 +49,13 @@ export function initGame() {
   initCardsUI(P);
   initInput(P);
 
-  requestAnimationFrame(step);
+  last = performance.now();
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  animFrameId = requestAnimationFrame(step);
+}
+
+function restartGame() {
+  initGame();
 }
 
 function step(now) {
@@ -154,7 +180,22 @@ function step(now) {
     nr = r;
   });
 
-  requestAnimationFrame(step);
+  // Comprobar condición de Victoria / Derrota (Control >= 65% del territorio)
+  if (!isGameOver) {
+    const totalCells = C * R;
+    const pb = nb / totalCells;
+    const pr = nr / totalCells;
+
+    if (pb >= 0.65) {
+      isGameOver = true;
+      showGameOver(true, '¡Has dominado más del 65% del territorio!');
+    } else if (pr >= 0.65) {
+      isGameOver = true;
+      showGameOver(false, 'El enemigo ha tomado el control del territorio.');
+    }
+  }
+
+  animFrameId = requestAnimationFrame(step);
 }
 
 window.addEventListener('DOMContentLoaded', initGame);
