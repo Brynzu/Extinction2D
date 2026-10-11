@@ -96,7 +96,7 @@ function generateLinearTrenchNetwork(startX, startY) {
     cy += mainDir[1];
   }
 
-  // Asignar celdas superficiales (1 / T=3) en extremos y periódicamente
+  // Asignar celdas superficiales (1 / T=3) en extremos y periódicamente (reducido a cada 5)
   for (const [x, y, idx] of cells) {
     let neighborCount = 0;
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -104,7 +104,7 @@ function generateLinearTrenchNetwork(startX, startY) {
       if (isT(x + dx, y + dy)) neighborCount++;
     }
     // Extremos (1 vecino) o posiciones periódicas (entradas/posiciones de tiro)
-    if (neighborCount <= 1 || idx % 3 === 0) {
+    if (neighborCount <= 1 || idx % 5 === 0) {
       T[y * C + x] = 3;
     }
   }

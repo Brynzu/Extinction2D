@@ -37,7 +37,7 @@ export const CONFIG = {
   CARDS: [
     { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false }, // Cooldown x2
     { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
-    { n: 'Dron Kamikaze', k: 1, hp: 1, sp: 3, c: 2, cd: 6, isDrone: true },
+    { n: 'Dron Kamikaze', k: 1, hp: 1, sp: 4.5, c: 2, cd: 6, isDrone: true },
     { n: 'Escuadra', k: 3, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
   ],
 
@@ -66,7 +66,7 @@ export const CONFIG = {
     DISPERSION_DIST: 0.02,
     DISPERSION_MOVING_MULT: 1.5,
     DISPERSION_TRENCH_DEEP_MULT: 0.45,
-    DISPERSION_DRONE_MULT: 3.5, // Mucha menor precisión al disparar a drones
+    DISPERSION_DRONE_MULT: 2.45, // Mucha menor precisión al disparar a drones (reducida dispersión un 30% -> +30% precisión)
     TRENCH_SHALLOW_DAMAGE_MULT: 0.3,
     SHOT_REVEAL_TIME: 0.8,
   },
