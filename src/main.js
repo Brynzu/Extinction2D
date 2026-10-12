@@ -202,17 +202,23 @@ function setupMenuUI() {
 
   btnMpStart.onclick = () => {
     if (!isHost) return;
+    const playersConfig = mpLobbyPlayers.map((p) => ({
+      id: p.id,
+      name: p.name,
+      isHuman: true,
+      team: p.team,
+      colorKey: p.colorKey,
+    }));
+
+    // Pre-inicializar mapa en Host para extraer T
+    initMap(mpMapEl.value, playersConfig);
+
     const startAction = {
       type: ACTION_TYPES.START_GAME,
       data: {
         mapPreset: mpMapEl.value,
-        playersConfig: mpLobbyPlayers.map((p) => ({
-          id: p.id,
-          name: p.name,
-          isHuman: true,
-          team: p.team,
-          colorKey: p.colorKey,
-        })),
+        playersConfig,
+        gridT: Array.from(T),
       },
     };
     sendNetMessage(startAction);
@@ -509,7 +515,7 @@ function handleIncomingNetData(data) {
   }
 }
 
-function handleStartGameAction({ mapPreset, playersConfig }) {
+function handleStartGameAction({ mapPreset, playersConfig, gridT }) {
   const screenGame = document.getElementById('screen-game');
   [
     document.getElementById('screen-main'),
@@ -525,15 +531,14 @@ function handleStartGameAction({ mapPreset, playersConfig }) {
     if (isHost) {
       myPConfig = playersConfig[0];
     } else {
-      // Identificar id asignado por el id en mpLobbyPlayers que coincide
       myPConfig = playersConfig.find((p) => p.id === mpLobbyPlayers[mpLobbyPlayers.length - 1]?.id) || playersConfig[1];
     }
   }
 
-  startGame(mapPreset, playersConfig, myPConfig);
+  startGame(mapPreset, playersConfig, myPConfig, gridT);
 }
 
-function startGame(mapPreset, playersConfig, localHumanOverride = null) {
+function startGame(mapPreset, playersConfig, localHumanOverride = null, gridT = null) {
   gameActive = true;
   isPaused = false;
   U.length = 0;
@@ -578,7 +583,7 @@ function startGame(mapPreset, playersConfig, localHumanOverride = null) {
 
   myPlayerIdInGame = humanPlayer.id;
 
-  initMap(mapPreset, gamePlayers);
+  initMap(mapPreset, gamePlayers, gridT);
 
   const roles = ['leader', 'machinegunner', 'grenadier', 'rifleman', 'rifleman'];
   gamePlayers.forEach((p) => {
@@ -857,7 +862,7 @@ function step(now) {
       }
     }
 
-    updateCombat(dt, gamePlayers);
+    updateCombat(dt, gamePlayers, isMultiplayer && !isHost);
 
     for (let i = U.length - 1; i >= 0; i--) {
       if (U[i].hp <= 0) U.splice(i, 1);
