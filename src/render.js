@@ -85,19 +85,24 @@ export function draw(humanPlayer, players = [], box = null) {
   const playerMap = new Map();
   players.forEach((p) => playerMap.set(p.id, p));
 
-  // Recuento de territorio por jugador
+  // Recuento de territorio por jugador y equipo
   const territoryCounts = new Map();
-  players.forEach((p) => territoryCounts.set(p.id, 0));
+  const teamTerritoryCounts = new Map();
+  players.forEach((p) => {
+    territoryCounts.set(p.id, 0);
+    teamTerritoryCounts.set(p.team, 0);
+  });
 
-  // Renderizar Territorio
+  // Renderizar Territorio (color de conquista según el EQUIPO)
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
       const pId = Math.round(v[y * C + x]);
       if (pId > 0 && playerMap.has(pId)) {
-        territoryCounts.set(pId, (territoryCounts.get(pId) || 0) + 1);
         const p = playerMap.get(pId);
-        const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
-        g.fillStyle = col.main + '40'; // 25% opacidad
+        territoryCounts.set(pId, (territoryCounts.get(pId) || 0) + 1);
+        teamTerritoryCounts.set(p.team, (teamTerritoryCounts.get(p.team) || 0) + 1);
+        const teamCol = CONFIG.TEAM_COLORS[p.team] || CONFIG.COLORS.blue;
+        g.fillStyle = teamCol.main + '40'; // Color de conquista del equipo
         g.fillRect(x * S, y * S, S, S);
       }
     }
@@ -216,7 +221,7 @@ export function draw(humanPlayer, players = [], box = null) {
   g.lineCap = 'round';
   for (const bullet of B) {
     const bPid = bullet.playerId || bullet.t;
-    if (humanPlayer && bPid !== humanPlayer.id && !canSee(bullet.x, bullet.y, humanPlayer.id)) continue;
+    if (humanPlayer && bPid !== humanPlayer.id && !canSee(bullet.x, bullet.y, humanPlayer, players)) continue;
     const p = playerMap.get(bPid) || { colorKey: 'blue' };
     const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
     g.strokeStyle = col.light;
@@ -268,27 +273,33 @@ export function draw(humanPlayer, players = [], box = null) {
   // Renderizar Minimapa
   drawMinimap(playerMap);
 
-  // Actualizar UI del territorio superior
+  // Actualizar UI del territorio superior por EQUIPO
   const totalCells = C * R;
   let myTeamPct = 0;
   let enemyPct = 0;
 
   let barHtml = '';
+  const renderedTeams = new Set();
+
   players.forEach((p) => {
-    const count = territoryCounts.get(p.id) || 0;
-    const pct = Math.round((count / totalCells) * 100);
-    const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
-    barHtml += `<i style="background:${col.main};width:${pct}%" title="${p.name}: ${pct}%"></i>`;
+    if (renderedTeams.has(p.team)) return;
+    renderedTeams.add(p.team);
+
+    const teamCount = teamTerritoryCounts.get(p.team) || 0;
+    const pct = Math.round((teamCount / totalCells) * 100);
+    const teamCol = CONFIG.TEAM_COLORS[p.team] || CONFIG.COLORS.blue;
+
+    barHtml += `<i style="background:${teamCol.main};width:${pct}%" title="Equipo ${p.team}: ${pct}%"></i>`;
 
     if (humanPlayer && p.team === humanPlayer.team) {
-      myTeamPct += pct;
+      myTeamPct = pct;
     } else {
       enemyPct += pct;
     }
   });
 
   territoryBarEl.innerHTML = barHtml;
-  pbEl.textContent = `Tú (${humanPlayer ? humanPlayer.team : 'A'}) ${myTeamPct}%`;
+  pbEl.textContent = `Tú (Eq ${humanPlayer ? humanPlayer.team : 'A'}) ${myTeamPct}%`;
   prEl.textContent = `Enemigos ${enemyPct}%`;
 }
 

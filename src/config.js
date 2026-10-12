@@ -27,6 +27,15 @@ export const CONFIG = {
     orange: { main: '#e67e22', light: '#f8c471', dark: '#935116', name: 'Naranja' },
   },
 
+  TEAM_COLORS: {
+    A: { main: '#3b7fd0', light: '#9cc4f5', dark: '#1c4f93', name: 'Equipo A' },
+    B: { main: '#cf4a3a', light: '#f2a198', dark: '#8f2a1e', name: 'Equipo B' },
+    C: { main: '#2eac66', light: '#86e3ad', dark: '#196139', name: 'Equipo C' },
+    D: { main: '#e6b800', light: '#f7e17c', dark: '#8a6e00', name: 'Equipo D' },
+    E: { main: '#9b59b6', light: '#d2b4de', dark: '#5b2c6f', name: 'Equipo E' },
+    F: { main: '#e67e22', light: '#f8c471', dark: '#935116', name: 'Equipo F' },
+  },
+
   // Configuración de cámara
   CAMERA: {
     MIN_ZOOM: 0.35,
