@@ -52,7 +52,7 @@ export function analyzeSectors() {
   return { weakLane, targetY, coverClusters };
 }
 
-export function updateAIDrones(analysis) {
+export function updateAIDrones(analysis, E) {
   const aiDrones = U.filter((u) => u.t < 0 && u.isDrone);
   if (!aiDrones.length) return;
 
@@ -60,8 +60,10 @@ export function updateAIDrones(analysis) {
   const blueUnitsNearRedHQ = U.filter((u) => u.t > 0 && Math.hypot(u.x - CONFIG.HQ.RED_HQ.x, u.y - CONFIG.HQ.RED_HQ.y) < 35);
   const waitingDrones = aiDrones.filter((d) => !d.attackTarget || d.attackTarget.hp <= 0);
 
-  // Si se acumulan 2 a 5 drones (o hay unidades enemigas amenazando el HQ Rojo)
-  if (waitingDrones.length >= 2 || (waitingDrones.length >= 1 && blueUnitsNearRedHQ.length > 0)) {
+  const swarmThreshold = Math.min(7, Math.max(3, E.droneSwarmGoal || 4));
+
+  // Acumular de 3 a 7 drones cerca del HQ Rojo antes de lanzar el ataque en enjambre
+  if (waitingDrones.length >= swarmThreshold || (waitingDrones.length >= 2 && blueUnitsNearRedHQ.length > 0)) {
     let swarmTarget = null;
     if (blueUnitsNearRedHQ.length > 0) {
       swarmTarget = blueUnitsNearRedHQ[0];
@@ -76,13 +78,15 @@ export function updateAIDrones(analysis) {
       waitingDrones.forEach((d) => {
         d.attackTarget = swarmTarget;
       });
+      // Siguiente objetivo de enjambre entre 3 y 7 drones
+      E.droneSwarmGoal = Math.floor(3 + Math.random() * 5);
     }
   } else {
-    // Mantener drones esperando y acumulándose cerca del HQ Rojo antes del ataque en enjambre
+    // Mantener los drones esperando y agrupados en formación alrededor del HQ Rojo
     waitingDrones.forEach((d, k) => {
       d.attackTarget = null;
-      d.tx = cl(CONFIG.HQ.RED_HQ.x + ((k % 3) - 1) * 2, 2, C - 2);
-      d.ty = cl(CONFIG.HQ.RED_HQ.y + (Math.floor(k / 3) - 1) * 2, 2, R - 2);
+      d.tx = cl(CONFIG.HQ.RED_HQ.x + ((k % 4) - 1.5) * 2.2, 2, C - 2);
+      d.ty = cl(CONFIG.HQ.RED_HQ.y + (Math.floor(k / 4) - 1) * 2.2, 2, R - 2);
     });
   }
 }
@@ -90,7 +94,11 @@ export function updateAIDrones(analysis) {
 export function aiPlay(E) {
   const analysis = analyzeSectors();
 
-  // Despliegue de unidades si hay recursos y espacio disponible
+  if (!E.droneSwarmGoal) {
+    E.droneSwarmGoal = Math.floor(3 + Math.random() * 5); // Meta inicial de 3 a 7 drones
+  }
+
+  // Despliegue de unidades y balanceo de cartas
   if (cnt(-1) < CONFIG.GAME.MAX_UNITS_PER_SIDE) {
     const availableIndices = [];
     for (let i = 0; i < 4; i++) {
@@ -101,27 +109,33 @@ export function aiPlay(E) {
 
     if (availableIndices.length > 0) {
       const droneCardIndex = availableIndices.find((idx) => CARDS[idx].isDrone);
-      const targetCluster = analysis.coverClusters[0];
-      const blueUnitsNearRedHQ = U.filter((u) => u.t > 0 && Math.hypot(u.x - CONFIG.HQ.RED_HQ.x, u.y - CONFIG.HQ.RED_HQ.y) < 35);
+      const squadIndices = availableIndices.filter((idx) => !CARDS[idx].isDrone);
 
-      if (droneCardIndex !== undefined && ((targetCluster && targetCluster.count >= 2) || blueUnitsNearRedHQ.length > 0)) {
+      const redGroundUnits = U.filter((u) => u.t < 0 && !u.isDrone);
+      const currentDrones = U.filter((u) => u.t < 0 && u.isDrone);
+
+      // Reabastecimiento prioritario de fuerza terrestre:
+      // Si hay menos de 10 soldados terrestres, la IA DEBE sacar escuadrones de infantería.
+      let deployDrone = false;
+      if (droneCardIndex !== undefined && redGroundUnits.length >= 10 && currentDrones.length < E.droneSwarmGoal) {
+        deployDrone = Math.random() < 0.65;
+      }
+
+      if (deployDrone && droneCardIndex !== undefined) {
         E.res -= CARDS[droneCardIndex].c;
-        E.cds[droneCardIndex] = 2.0; // Cooldown para ir acumulando drones en HQ
+        E.cds[droneCardIndex] = 2.5;
         deploy(-1, droneCardIndex);
-      } else {
-        const squadIndices = availableIndices.filter((idx) => !CARDS[idx].isDrone);
-        if (squadIndices.length > 0) {
-          const chosenIndex = squadIndices[Math.floor(Math.random() * squadIndices.length)];
-          E.res -= CARDS[chosenIndex].c;
-          E.cds[chosenIndex] = CARDS[chosenIndex].cd;
-          deploy(-1, chosenIndex);
-        }
+      } else if (squadIndices.length > 0) {
+        const chosenIndex = squadIndices[Math.floor(Math.random() * squadIndices.length)];
+        E.res -= CARDS[chosenIndex].c;
+        E.cds[chosenIndex] = CARDS[chosenIndex].cd;
+        deploy(-1, chosenIndex);
       }
     }
   }
 
   // Actualizar enjambres de drones
-  updateAIDrones(analysis);
+  updateAIDrones(analysis, E);
 
   // Refresco táctico constante para las escuadras en campo
   aiTrench();
