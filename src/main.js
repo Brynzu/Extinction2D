@@ -20,7 +20,7 @@ let pt = 0;
 const spSettings = {
   mapPreset: 'default',
   aiCount: 1,
-  mode: '1v1',
+  mode: 'teams',
   playersConfig: [],
 };
 
@@ -95,17 +95,15 @@ function setupMenuUI() {
 
     const defaultColors = ['red', 'green', 'yellow', 'purple', 'orange'];
 
+    const half = Math.ceil(totalPlayers / 2);
+
     for (let i = 1; i < totalPlayers; i++) {
       let defaultTeam = 'B';
-      if (spSettings.mode === '2v2') {
-        defaultTeam = i === 1 ? 'A' : 'B';
-      } else if (spSettings.mode === '3v3') {
-        defaultTeam = i <= 2 ? 'A' : 'B';
-      } else if (spSettings.mode === 'ffa') {
+      if (spSettings.mode === 'ffa') {
         defaultTeam = String.fromCharCode(65 + i); // A, B, C, D, E...
       } else {
-        // 1v1
-        defaultTeam = 'B';
+        // 'teams'
+        defaultTeam = i < half ? 'A' : 'B';
       }
 
       spSettings.playersConfig.push({
@@ -204,9 +202,16 @@ function startGame() {
   clearBullets();
   resetSquadCounter();
 
+  // Calcular escala de mapa y posiciones de HQ
+  const totalArmies = spSettings.playersConfig.length;
+  const mapScale = totalArmies >= 5 ? 2.0 : totalArmies >= 3 ? 1.5 : 1.0;
+  const cols = Math.round(CONFIG.GRID.COLUMNS * mapScale);
+  const rows = Math.round(CONFIG.GRID.ROWS * mapScale);
+  const hqPositions = CONFIG.getHQPositions(cols, rows);
+
   // Inicializar objetos de jugador
   gamePlayers = spSettings.playersConfig.map((p, idx) => {
-    const pos = CONFIG.HQ_POSITIONS[idx];
+    const pos = hqPositions[idx];
     return {
       ...p,
       res: CONFIG.GAME.INITIAL_RESOURCES,

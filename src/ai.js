@@ -13,6 +13,8 @@ function getEnemyHQsOf(p, players) {
     .map((e) => e.hq);
 }
 
+import { areEnemies } from './combat.js';
+
 function getClosestEnemyHQ(p, players, x, y) {
   const hqs = getEnemyHQsOf(p, players);
   if (!hqs.length) return null;
@@ -28,6 +30,25 @@ function getClosestEnemyHQ(p, players, x, y) {
   return closest;
 }
 
+function findStrugglingAlly(p, players) {
+  const allies = players.filter((other) => other.id !== p.id && other.team === p.team && other.hq && other.hq.alive);
+  if (!allies.length) return null;
+
+  for (const ally of allies) {
+    if (ally.hq.hp < ally.hq.maxHp * 0.7) {
+      return ally;
+    }
+    const enemiesNearAllyHQ = U.filter(
+      (u) => areEnemies(p.id, u.playerId || u.t, players) && Math.hypot(u.x - ally.hq.x, u.y - ally.hq.y) < 25
+    );
+    if (enemiesNearAllyHQ.length >= 2) {
+      return ally;
+    }
+  }
+
+  return null;
+}
+
 export function updateAIDrones(p, players) {
   const aiDrones = U.filter((u) => (u.playerId === p.id || u.t === p.id) && u.isDrone);
   if (!aiDrones.length || !p.hq) return;
@@ -35,13 +56,23 @@ export function updateAIDrones(p, players) {
   const enemies = getEnemiesOf(p, players);
   const enemyUnits = U.filter((u) => enemies.some((e) => e.id === u.playerId || e.id === u.t));
 
+  const strugglingAlly = findStrugglingAlly(p, players);
   const enemyHQ = getClosestEnemyHQ(p, players, p.hq.x, p.hq.y);
 
   const waitingDrones = aiDrones.filter((d) => !d.attackTarget || (d.attackTarget.hp <= 0 && (!d.attackTarget.isHq || !d.attackTarget.alive)));
   const swarmThreshold = Math.min(7, Math.max(3, p.droneSwarmGoal || 4));
 
   if (waitingDrones.length >= swarmThreshold || (enemyHQ && Math.hypot(enemyHQ.x - p.hq.x, enemyHQ.y - p.hq.y) < 20)) {
-    let swarmTarget = enemyUnits.length ? enemyUnits[0] : enemyHQ ? { x: enemyHQ.x, y: enemyHQ.y, isHq: true, alive: true } : null;
+    let swarmTarget = null;
+
+    if (strugglingAlly) {
+      const enemiesNearAlly = enemyUnits.filter((u) => Math.hypot(u.x - strugglingAlly.hq.x, u.y - strugglingAlly.hq.y) < 30);
+      if (enemiesNearAlly.length) swarmTarget = enemiesNearAlly[0];
+    }
+
+    if (!swarmTarget) {
+      swarmTarget = enemyUnits.length ? enemyUnits[0] : enemyHQ ? { x: enemyHQ.x, y: enemyHQ.y, isHq: true, alive: true } : null;
+    }
 
     if (swarmTarget) {
       waitingDrones.forEach((d) => {
@@ -109,7 +140,8 @@ export function aiTrench(p, players) {
   const myGroundUnits = U.filter((u) => (u.playerId === p.id || u.t === p.id) && !u.isDrone);
   if (!myGroundUnits.length) return;
 
-  const targetHQ = getClosestEnemyHQ(p, players, p.hq.x, p.hq.y);
+  const strugglingAlly = findStrugglingAlly(p, players);
+  const targetHQ = strugglingAlly ? strugglingAlly.hq : getClosestEnemyHQ(p, players, p.hq.x, p.hq.y);
   if (!targetHQ) return;
 
   // Agrupar unidades por escuadrón

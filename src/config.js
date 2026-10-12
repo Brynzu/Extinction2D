@@ -6,14 +6,14 @@ export const CONFIG = {
     CELL_SIZE: 20,
   },
 
-  // Configuración de los HQs y Puntos de Spawn para hasta 6 ejércitos
-  HQ_POSITIONS: [
-    { spawn: { x: 2, y: 10 }, hq: { x: 12, y: 20 } },   // Pos 0: Izquierda Arriba
-    { spawn: { x: 118, y: 70 }, hq: { x: 108, y: 60 } }, // Pos 1: Derecha Abajo
-    { spawn: { x: 2, y: 70 }, hq: { x: 12, y: 60 } },   // Pos 2: Izquierda Abajo
-    { spawn: { x: 118, y: 10 }, hq: { x: 108, y: 20 } }, // Pos 3: Derecha Arriba
-    { spawn: { x: 2, y: 40 }, hq: { x: 12, y: 40 } },   // Pos 4: Izquierda Centro
-    { spawn: { x: 118, y: 40 }, hq: { x: 108, y: 40 } }, // Pos 5: Derecha Centro
+  // Configuración de los HQs y Puntos de Spawn adaptables según dimensiones de mapa
+  getHQPositions: (cols, rows) => [
+    { spawn: { x: 2, y: Math.round(rows * 0.12) }, hq: { x: 12, y: Math.round(rows * 0.25) } },                         // Pos 0: Izquierda Arriba
+    { spawn: { x: cols - 2, y: Math.round(rows * 0.88) }, hq: { x: cols - 12, y: Math.round(rows * 0.75) } },             // Pos 1: Derecha Abajo
+    { spawn: { x: 2, y: Math.round(rows * 0.88) }, hq: { x: 12, y: Math.round(rows * 0.75) } },                         // Pos 2: Izquierda Abajo
+    { spawn: { x: cols - 2, y: Math.round(rows * 0.12) }, hq: { x: cols - 12, y: Math.round(rows * 0.25) } },             // Pos 3: Derecha Arriba
+    { spawn: { x: 2, y: Math.round(rows * 0.50) }, hq: { x: 12, y: Math.round(rows * 0.50) } },                         // Pos 4: Izquierda Centro
+    { spawn: { x: cols - 2, y: Math.round(rows * 0.50) }, hq: { x: cols - 12, y: Math.round(rows * 0.50) } },             // Pos 5: Derecha Centro
   ],
 
   HQ_MAX_HP: 100,
