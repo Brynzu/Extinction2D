@@ -25,8 +25,7 @@ export const rf = document.getElementById('rf');
 export const rn = document.getElementById('rn');
 export const pbEl = document.getElementById('pb');
 export const prEl = document.getElementById('pr');
-export const bb = document.getElementById('bb');
-export const br = document.getElementById('br');
+export const territoryBarEl = document.getElementById('territory-bar');
 
 let msgTimeout = null;
 
@@ -36,7 +35,7 @@ export function msg(t) {
   msgTimeout = setTimeout(() => (hint.textContent = HINT), 2200);
 }
 
-export function initCardsUI(P) {
+export function initCardsUI(humanPlayer) {
   cardsEl.innerHTML = '';
   CARDS.forEach((c, i) => {
     const b = document.createElement('button');
@@ -44,30 +43,34 @@ export function initCardsUI(P) {
     b.innerHTML = '<b>' + c.n + '</b>×' + c.k + ' · costo ' + c.c + '<div class="cd"></div>';
     b.onclick = () => {
       sounds.init();
-      if (P.cds[i] > 0) return msg('Esa carta se está recargando.');
-      if (P.res < c.c) return msg('Recurso insuficiente.');
-      P.res -= c.c;
-      P.cds[i] = c.cd;
-      deploy(1, i);
+      if (!humanPlayer || !humanPlayer.hq || !humanPlayer.hq.alive) {
+        return msg('Tu HQ ha sido destruido. No puedes desplegar más refuerzos.');
+      }
+      if (humanPlayer.cds[i] > 0) return msg('Esa carta se está recargando.');
+      if (humanPlayer.res < c.c) return msg('Recurso insuficiente.');
+      humanPlayer.res -= c.c;
+      humanPlayer.cds[i] = c.cd;
+      deploy(humanPlayer, i);
       sounds.playDeploy();
-      msg('Refuerzos desplegados desde la esquina.');
+      msg('Refuerzos desplegados.');
     };
     cardsEl.appendChild(b);
   });
 }
 
-export function ui(P) {
-  rf.style.width = P.res * 10 + '%';
-  rn.textContent = Math.floor(P.res);
+export function ui(humanPlayer) {
+  if (!humanPlayer) return;
+  rf.style.width = humanPlayer.res * 10 + '%';
+  rn.textContent = Math.floor(humanPlayer.res);
   [...cardsEl.children].forEach((b, i) => {
     const c = CARDS[i];
-    b.classList.toggle('off', P.cds[i] > 0 || P.res < c.c);
-    b.classList.toggle('sel', P.sel === i);
-    b.lastChild.style.height = (P.cds[i] / c.cd) * 100 + '%';
+    b.classList.toggle('off', humanPlayer.cds[i] > 0 || humanPlayer.res < c.c);
+    b.classList.toggle('sel', humanPlayer.sel === i);
+    b.lastChild.style.height = (humanPlayer.cds[i] / c.cd) * 100 + '%';
   });
 }
 
-export function draw(P, box, setCounts) {
+export function draw(humanPlayer, players = [], box = null) {
   g.clearRect(0, 0, cv.width, cv.height);
 
   g.save();
@@ -78,18 +81,25 @@ export function draw(P, box, setCounts) {
   g.fillStyle = '#4a5340';
   g.fillRect(0, 0, C * S, R * S);
 
-  let b = 0;
-  let r = 0;
+  // Mapeo de jugadores
+  const playerMap = new Map();
+  players.forEach((p) => playerMap.set(p.id, p));
 
-  // Territorio
+  // Recuento de territorio por jugador
+  const territoryCounts = new Map();
+  players.forEach((p) => territoryCounts.set(p.id, 0));
+
+  // Renderizar Territorio
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
-      const a = v[y * C + x];
-      if (a > 0.3) b++;
-      else if (a < -0.3) r++;
-      if (a === 0) continue;
-      g.fillStyle = a > 0 ? `rgba(59,127,208,${0.15 + 0.5 * a})` : `rgba(207,74,58,${0.15 - 0.5 * a})`;
-      g.fillRect(x * S, y * S, S, S);
+      const pId = Math.round(v[y * C + x]);
+      if (pId > 0 && playerMap.has(pId)) {
+        territoryCounts.set(pId, (territoryCounts.get(pId) || 0) + 1);
+        const p = playerMap.get(pId);
+        const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
+        g.fillStyle = col.main + '40'; // 25% opacidad
+        g.fillRect(x * S, y * S, S, S);
+      }
     }
   }
 
@@ -104,27 +114,50 @@ export function draw(P, box, setCounts) {
     }
   }
 
-  // HQs
-  const drawHQ = (hqPos, color, label) => {
-    const hqX = hqPos.x * S;
-    const hqY = hqPos.y * S;
-    g.fillStyle = color;
-    g.fillRect(hqX - 25, hqY - 25, 50, 50);
-    g.strokeStyle = '#ffffff';
-    g.lineWidth = 3;
-    g.strokeRect(hqX - 25, hqY - 25, 50, 50);
-    g.fillStyle = '#ffffff';
-    g.font = 'bold 11px sans-serif';
-    g.textAlign = 'center';
-    g.fillText(label, hqX, hqY + 4);
-  };
+  // Renderizar HQs
+  players.forEach((p) => {
+    if (!p.hq) return;
+    const hqX = p.hq.x * S;
+    const hqY = p.hq.y * S;
+    const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
 
-  drawHQ(CONFIG.HQ.BLUE_HQ, '#3b7fd0', 'HQ AZUL');
-  drawHQ(CONFIG.HQ.RED_HQ, '#cf4a3a', 'HQ ROJO');
+    if (p.hq.alive) {
+      g.fillStyle = col.main;
+      g.fillRect(hqX - 25, hqY - 25, 50, 50);
+      g.strokeStyle = '#ffffff';
+      g.lineWidth = 3;
+      g.strokeRect(hqX - 25, hqY - 25, 50, 50);
 
-  // Unidades
+      // Barra de vida del HQ
+      g.fillStyle = 'rgba(0,0,0,0.7)';
+      g.fillRect(hqX - 25, hqY - 35, 50, 6);
+      g.fillStyle = col.light;
+      g.fillRect(hqX - 25, hqY - 35, (50 * p.hq.hp) / p.hq.maxHp, 6);
+
+      g.fillStyle = '#ffffff';
+      g.font = 'bold 10px sans-serif';
+      g.textAlign = 'center';
+      g.fillText(p.name, hqX, hqY + 4);
+    } else {
+      // HQ destruido
+      g.fillStyle = '#2a2a2a';
+      g.fillRect(hqX - 25, hqY - 25, 50, 50);
+      g.strokeStyle = '#666';
+      g.lineWidth = 2;
+      g.strokeRect(hqX - 25, hqY - 25, 50, 50);
+      g.fillStyle = '#888';
+      g.font = 'bold 10px sans-serif';
+      g.textAlign = 'center';
+      g.fillText(p.name + ' (DESTRUIDO)', hqX, hqY + 4);
+    }
+  });
+
+  // Renderizar Unidades
   for (const u of U) {
-    // Unidades enemigas siempre visibles para prueba/testeo
+    const uPid = u.playerId || u.t;
+    const p = playerMap.get(uPid) || { colorKey: 'blue' };
+    const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
+
     if (u.s) {
       g.strokeStyle = '#fff';
       g.setLineDash([3, 3]);
@@ -135,11 +168,10 @@ export function draw(P, box, setCounts) {
     }
 
     if (u.isDrone) {
-      // Renderizar Dron (Triángulo volador)
       g.save();
       g.translate(u.x * S, u.y * S);
-      g.fillStyle = u.t > 0 ? '#6fb0ff' : '#ff7a6a';
-      g.strokeStyle = u.s ? '#fff' : u.t > 0 ? '#1c4f93' : '#8f2a1e';
+      g.fillStyle = col.light;
+      g.strokeStyle = u.s ? '#fff' : col.dark;
       g.lineWidth = u.s ? 2.5 : 1.5;
       g.beginPath();
       g.moveTo(0, -8);
@@ -150,10 +182,9 @@ export function draw(P, box, setCounts) {
       g.stroke();
       g.restore();
     } else {
-      // Renderizar Infantería
-      const drawRadius = S * CONFIG.UNITS.DRAW_RADIUS; // -10% de tamaño
-      g.fillStyle = u.t > 0 ? '#9cc4f5' : '#f2a198';
-      g.strokeStyle = u.s ? '#fff' : u.t > 0 ? '#1c4f93' : '#8f2a1e';
+      const drawRadius = S * CONFIG.UNITS.DRAW_RADIUS;
+      g.fillStyle = col.light;
+      g.strokeStyle = u.s ? '#fff' : col.dark;
       g.lineWidth = u.s ? 3 : 2;
       g.globalAlpha = deep(u) ? 0.6 : 1;
       g.beginPath();
@@ -161,14 +192,16 @@ export function draw(P, box, setCounts) {
       g.fill();
       g.stroke();
       g.globalAlpha = 1;
+
+      // Barra de vida de la unidad
       g.fillStyle = 'rgba(0,0,0,.6)';
       g.fillRect(u.x * S - 6, u.y * S + 7, 12, 3);
-      g.fillStyle = u.t > 0 ? '#6fb0ff' : '#ff7a6a';
+      g.fillStyle = col.main;
       g.fillRect(u.x * S - 6, u.y * S + 7, (12 * u.hp) / u.mh, 3);
     }
   }
 
-  // Renderizar Explosiones de Drones
+  // Renderizar Explosiones
   for (const ex of explosions) {
     const alpha = ex.l / ex.maxL;
     const radius = S * 1.8 * (1 - alpha * 0.5);
@@ -178,12 +211,15 @@ export function draw(P, box, setCounts) {
     g.fill();
   }
 
-  // Renderizar Balas (15% más delgadas y rápidas)
+  // Renderizar Balas
   g.lineWidth = CONFIG.COMBAT.BULLET_WIDTH;
   g.lineCap = 'round';
   for (const bullet of B) {
-    if (bullet.t < 0 && !canSee(bullet.x, bullet.y)) continue;
-    g.strokeStyle = bullet.t > 0 ? '#e3f0ff' : '#ffe0db';
+    const bPid = bullet.playerId || bullet.t;
+    if (humanPlayer && bPid !== humanPlayer.id && !canSee(bullet.x, bullet.y, humanPlayer.id)) continue;
+    const p = playerMap.get(bPid) || { colorKey: 'blue' };
+    const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
+    g.strokeStyle = col.light;
     g.beginPath();
     g.moveTo((bullet.x - bullet.vx * 0.03) * S, (bullet.y - bullet.vy * 0.03) * S);
     g.lineTo(bullet.x * S, bullet.y * S);
@@ -230,19 +266,33 @@ export function draw(P, box, setCounts) {
   g.restore();
 
   // Renderizar Minimapa
-  drawMinimap();
+  drawMinimap(playerMap);
 
-  if (setCounts) setCounts(b, r);
-  const n = C * R;
-  const pb = Math.round((b / n) * 100);
-  const pr = Math.round((r / n) * 100);
-  pbEl.textContent = 'Tú ' + pb + '%';
-  prEl.textContent = 'Enemigo ' + pr + '%';
-  bb.style.width = pb + '%';
-  br.style.width = pr + '%';
+  // Actualizar UI del territorio superior
+  const totalCells = C * R;
+  let myTeamPct = 0;
+  let enemyPct = 0;
+
+  let barHtml = '';
+  players.forEach((p) => {
+    const count = territoryCounts.get(p.id) || 0;
+    const pct = Math.round((count / totalCells) * 100);
+    const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
+    barHtml += `<i style="background:${col.main};width:${pct}%" title="${p.name}: ${pct}%"></i>`;
+
+    if (humanPlayer && p.team === humanPlayer.team) {
+      myTeamPct += pct;
+    } else {
+      enemyPct += pct;
+    }
+  });
+
+  territoryBarEl.innerHTML = barHtml;
+  pbEl.textContent = `Tú (${humanPlayer ? humanPlayer.team : 'A'}) ${myTeamPct}%`;
+  prEl.textContent = `Enemigos ${enemyPct}%`;
 }
 
-function drawMinimap() {
+function drawMinimap(playerMap) {
   const mw = 140;
   const mh = 90;
   const mx = cv.width - mw - 10;
@@ -258,8 +308,10 @@ function drawMinimap() {
   const scaleY = mh / (R * S);
 
   for (const u of U) {
-    // Visibles en minimapa para testing
-    g.fillStyle = u.t > 0 ? '#3b7fd0' : '#cf4a3a';
+    const uPid = u.playerId || u.t;
+    const p = playerMap.get(uPid) || { colorKey: 'blue' };
+    const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
+    g.fillStyle = col.main;
     g.fillRect(mx + u.x * S * scaleX - 1, my + u.y * S * scaleY - 1, 3, 3);
   }
 

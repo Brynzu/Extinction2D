@@ -110,28 +110,47 @@ function generateLinearTrenchNetwork(startX, startY) {
   }
 }
 
-export function initMap() {
+export function initMap(preset = 'default', players = []) {
   T.fill(0);
+  v.fill(0);
+
+  let numForests = 35;
+  let numTrenches = 3;
+
+  if (preset === 'forest') {
+    numForests = 75;
+    numTrenches = 1;
+  } else if (preset === 'trench') {
+    numForests = 10;
+    numTrenches = 7;
+  }
 
   // Generar bosques distribuidos
-  for (let i = 0; i < 35; i++) {
+  for (let i = 0; i < numForests; i++) {
     blob(10 + Math.random() * (C - 20), 6 + Math.random() * (R - 12), 2 + Math.random() * 2);
   }
 
-  // Generar varias redes lineales de trincheras a lo largo del frente central (disminuido en un 50%)
-  const numClusters = 3;
-  for (let i = 0; i < numClusters; i++) {
-    const clusterX = Math.floor(30 + (i * (C - 60)) / numClusters + Math.random() * 6);
+  // Generar redes lineales de trincheras
+  for (let i = 0; i < numTrenches; i++) {
+    const clusterX = Math.floor(25 + (i * (C - 50)) / Math.max(1, numTrenches) + Math.random() * 6);
     const clusterY = Math.floor(15 + Math.random() * (R - 30));
     generateLinearTrenchNetwork(clusterX, clusterY);
   }
 
-  // Inicializar territorio en formato horizontal
-  for (let y = 0; y < R; y++) {
-    for (let x = 0; x < C; x++) {
-      v[y * C + x] = x < 35 ? 1 : x >= 85 ? -1 : 0;
+  // Inicializar territorio por jugador cerca de su HQ
+  players.forEach((p) => {
+    if (!p.hq) return;
+    const hx = Math.floor(p.hq.x);
+    const hy = Math.floor(p.hq.y);
+    const rad = 14;
+    for (let y = Math.max(0, hy - rad); y <= Math.min(R - 1, hy + rad); y++) {
+      for (let x = Math.max(0, hx - rad); x <= Math.min(C - 1, hx + rad); x++) {
+        if (Math.hypot(x - hx, y - hy) <= rad) {
+          v[y * C + x] = p.id;
+        }
+      }
     }
-  }
+  });
 
   // Celdas de trinchera
   TRL.length = 0;

@@ -51,7 +51,9 @@ export function screenToWorld(sx, sy) {
   return [worldPx / S, worldPy / S, canvasX, canvasY];
 }
 
-export function initInput(P) {
+import { areEnemies } from './combat.js';
+
+export function initInput(humanPlayerGetter, playersGetter) {
   clampCamera();
 
   cv.addEventListener('wheel', (e) => {
@@ -72,17 +74,20 @@ export function initInput(P) {
 
   const tap = (worldX, worldY) => {
     sounds.init();
+    const humanPlayer = humanPlayerGetter();
+    const players = playersGetter();
+    if (!humanPlayer) return;
 
-    if (P.sel >= 0) {
-      const c = CARDS[P.sel];
-      if (cnt(1) + c.k > CONFIG.GAME.MAX_UNITS_PER_SIDE) {
+    if (humanPlayer.sel >= 0) {
+      const c = CARDS[humanPlayer.sel];
+      if (cnt(humanPlayer.id) + c.k > CONFIG.GAME.MAX_UNITS_PER_SIDE) {
         msg('Límite de unidades alcanzado.');
       } else {
-        P.res -= c.c;
-        P.cds[P.sel] = c.cd;
-        deploy(1, P.sel);
+        humanPlayer.res -= c.c;
+        humanPlayer.cds[humanPlayer.sel] = c.cd;
+        deploy(humanPlayer, humanPlayer.sel);
         sounds.playDeploy();
-        P.sel = -1;
+        humanPlayer.sel = -1;
       }
       return;
     }
@@ -91,10 +96,11 @@ export function initInput(P) {
     const dbl = nowT - lastTap < 320;
     lastTap = nowT;
 
-    const selectedUnits = U.filter((u) => u.s && u.t > 0);
+    const myId = humanPlayer.id;
+    const selectedUnits = U.filter((u) => u.s && (u.playerId === myId || u.t === myId));
 
-    // Si tocamos una unidad enemiga visible, dar orden de ataque directo (RTS clásico)
-    const enemyHit = U.filter((u) => u.t < 0 && u.seen && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
+    // Si tocamos una unidad enemiga visible
+    const enemyHit = U.filter((u) => areEnemies(u.playerId || u.t, myId, players) && u.seen && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
       (p, q) => Math.hypot(p.x - worldX, p.y - worldY) - Math.hypot(q.x - worldX, q.y - worldY)
     )[0];
 
@@ -113,19 +119,19 @@ export function initInput(P) {
       return;
     }
 
-    // Tocar una unidad propia selecciona a TODA su escuadra (o al dron si es individual)
-    const ownHit = U.filter((u) => u.t > 0 && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
+    // Tocar unidad propia
+    const ownHit = U.filter((u) => (u.playerId === myId || u.t === myId) && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
       (p, q) => Math.hypot(p.x - worldX, p.y - worldY) - Math.hypot(q.x - worldX, q.y - worldY)
     )[0];
 
     if (ownHit) {
       if (dbl) {
         U.forEach((u) => {
-          if (u.t > 0) u.s = true;
+          if (u.playerId === myId || u.t === myId) u.s = true;
         });
       } else {
         U.forEach((u) => {
-          if (u.t > 0) {
+          if (u.playerId === myId || u.t === myId) {
             u.s = ownHit.squadId > 0 ? u.squadId === ownHit.squadId : u === ownHit;
           }
         });
@@ -281,12 +287,14 @@ export function initInput(P) {
         const x1 = Math.max(box[0], box[2]);
         const y0 = Math.min(box[1], box[3]);
         const y1 = Math.max(box[1], box[3]);
-        const inn = U.filter((u) => u.t > 0 && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
+        const humanPlayer = humanPlayerGetter();
+        const myId = humanPlayer ? humanPlayer.id : 1;
+        const inn = U.filter((u) => (u.playerId === myId || u.t === myId) && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
         const touchedSquadIds = new Set(
           inn.filter((u) => u.squadId > 0).map((u) => u.squadId)
         );
         U.forEach((u) => {
-          if (u.t > 0) {
+          if (u.playerId === myId || u.t === myId) {
             u.s = inn.includes(u) || (u.squadId > 0 && touchedSquadIds.has(u.squadId));
           }
         });

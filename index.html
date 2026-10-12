@@ -6,21 +6,41 @@
 <meta name="theme-color" content="#15181a">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-:root{--bg:#eef0ea;--fg:#1d211b;--mut:#5d645a;--bl:#3b7fd0;--rd:#cf4a3a;--btn:#dfe3d8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181a;--fg:#e6e8e3;--mut:#8b918a;--btn:#262b2d}}
-:root[data-theme="dark"]{--bg:#15181a;--fg:#e6e8e3;--mut:#8b918a;--btn:#262b2d}
+:root{--bg:#15181a;--fg:#e6e8e3;--mut:#8b918a;--bl:#3b7fd0;--rd:#cf4a3a;--btn:#262b2d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,sans-serif}
-main{max-width:480px;margin:0 auto;padding:10px}
-.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:#59624c}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,sans-serif;min-height:100vh;overflow-y:auto}
+main{max-width:540px;margin:0 auto;padding:10px;min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+.screen{display:none}
+.screen.active{display:flex;flex-direction:column;gap:12px}
+
+.menu-title{font-size:32px;font-weight:800;text-align:center;margin:0 0 10px;color:#e6e8e3;letter-spacing:2px;text-transform:uppercase}
+.menu-subtitle{font-size:14px;color:var(--mut);text-align:center;margin:-10px 0 15px}
+.menu-btn{width:100%;padding:14px;border:0;border-radius:10px;background:var(--btn);color:var(--fg);font-size:16px;font-weight:700;cursor:pointer;transition:background .2s, transform .1s}
+.menu-btn:hover:not(:disabled){background:#32383b;transform:translateY(-1px)}
+.menu-btn:disabled{opacity:0.4;cursor:not-allowed}
+.menu-btn.primary{background:var(--bl);color:#fff}
+.menu-btn.primary:hover{background:#4a8be0}
+.menu-btn.danger{background:var(--rd);color:#fff}
+
+.setting-group{background:#1e2224;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.setting-label{font-weight:600;font-size:14px;color:#a0a6a0;display:flex;justify-content:space-between;align-items:center}
+.setting-select, .setting-input{width:100%;padding:8px 10px;border-radius:6px;border:1px solid #353b3e;background:#15181a;color:var(--fg);font:inherit}
+
+.players-list{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;padding-right:4px}
+.player-row{display:flex;align-items:center;gap:8px;background:#15181a;padding:6px 10px;border-radius:6px;font-size:13px}
+.player-name{font-weight:600;flex:1}
+.player-select{padding:4px 6px;border-radius:4px;border:1px solid #353b3e;background:#1e2224;color:var(--fg);font-size:12px}
+
+.game-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:#59624c;margin-bottom:6px}
 .bar i{display:block;height:100%;transition:width .3s}
-.sc{display:flex;justify-content:space-between;margin:4px 0 8px;font-weight:600}
-canvas{display:block;width:100%;height:auto;touch-action:none;border-radius:6px}
+.sc{display:flex;justify-content:space-between;margin:2px 0 6px;font-weight:600;font-size:13px}
+canvas{display:block;width:100%;height:auto;touch-action:none;border-radius:6px;background:#222}
 .row{display:flex;gap:8px;margin-top:8px}
-button{flex:1;padding:12px;border:0;border-radius:8px;background:var(--btn);color:var(--fg);font:inherit;font-weight:600}
+button{padding:10px;border:0;border-radius:8px;background:var(--btn);color:var(--fg);font:inherit;font-weight:600;cursor:pointer}
 button:focus-visible{outline:2px solid var(--bl);outline-offset:2px}
-p{color:var(--mut);margin:8px 0 0;font-size:13px}
-.res{display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:600}
+p{color:var(--mut);margin:6px 0 0;font-size:12px}
+.res{display:flex;align-items:center;gap:8px;margin-top:6px;font-weight:600}
 .rb{flex:1;height:10px;border-radius:5px;background:var(--btn);overflow:hidden}
 .rb i{display:block;height:100%;width:50%;background:var(--bl)}
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
@@ -29,14 +49,93 @@ p{color:var(--mut);margin:8px 0 0;font-size:13px}
 .card.sel{outline:2px solid var(--bl);outline-offset:1px}
 .card.off{opacity:.5}
 .card .cd{position:absolute;left:0;bottom:0;width:100%;height:0;background:rgba(0,0,0,.4);pointer-events:none}
-</style></head><body><main>
-<div class="sc"><span id="pb" style="color:var(--bl)">Tú 0%</span><span id="pr" style="color:var(--rd)">Enemigo 0%</span></div>
-<div class="bar"><i id="bb" style="background:var(--bl);width:0"></i><i style="flex:1"></i><i id="br" style="background:var(--rd);width:0"></i></div>
-<canvas id="c" aria-label="Mapa del juego"></canvas>
-<div class="res"><div class="rb"><i id="rf"></i></div><span id="rn">5</span></div>
-<div class="cards" id="cards"></div>
 
-<p id="hint">Toca una unidad azul para seleccionarla y toca el mapa para moverla. Elige una carta y toca tu territorio para desplegar. Toca una trinchera para entrar; dentro, doble toque en el terreno para salir. Arrastra para seleccionar varias unidades (si no hay ninguna dentro, se suelta la selección); doble toque en una unidad selecciona todas.</p>
+.modal-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.75);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.active{display:flex}
+.modal-card{background:#1e2224;border-radius:12px;padding:20px;max-width:360px;width:90%;display:flex;flex-direction:column;gap:12px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.modal-title{font-size:24px;font-weight:800;margin:0}
+</style></head><body><main>
+
+<!-- MENÚ PRINCIPAL -->
+<div id="screen-main" class="screen active">
+  <h1 class="menu-title">FRENTE</h1>
+  <div class="menu-subtitle">Estrategia en Tiempo Real</div>
+  <button id="btn-singleplayer" class="menu-btn primary">Un Jugador</button>
+  <button class="menu-btn" disabled>Multijugador (Próximamente)</button>
+  <button class="menu-btn" disabled>Ajustes (Próximamente)</button>
+</div>
+
+<!-- MENÚ UN JUGADOR -->
+<div id="screen-sp" class="screen">
+  <h2 class="menu-title" style="font-size:22px">Un Jugador</h2>
+
+  <div class="setting-group">
+    <div class="setting-label"><span>Tipo de Mapa</span></div>
+    <select id="sp-map" class="setting-select">
+      <option value="default">Predeterminado (Equilibrado)</option>
+      <option value="forest">Bosque (Mucha vegetación, pocas trincheras)</option>
+      <option value="trench">Red de Trincheras (Gran red de trincheras)</option>
+    </select>
+  </div>
+
+  <div class="setting-group">
+    <div class="setting-label"><span>Ejércitos IA</span><span id="lbl-ai-count">1</span></div>
+    <input id="sp-ai-count" class="setting-input" type="range" min="1" max="5" value="1">
+  </div>
+
+  <div class="setting-group">
+    <div class="setting-label"><span>Modo de Juego</span></div>
+    <select id="sp-mode" class="setting-select">
+      <option value="1v1">1 vs 1</option>
+      <option value="2v2">2 vs 2</option>
+      <option value="3v3">3 vs 3</option>
+      <option value="ffa">Todos Contra Todos (FFA)</option>
+    </select>
+  </div>
+
+  <div class="setting-group">
+    <div class="setting-label"><span>Equipos y Colores</span></div>
+    <div id="players-list" class="players-list"></div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button id="btn-sp-back" class="menu-btn" style="flex:1">Volver</button>
+    <button id="btn-sp-start" class="menu-btn primary" style="flex:2">Empezar Partida</button>
+  </div>
+</div>
+
+<!-- PANTALLA DE JUEGO -->
+<div id="screen-game" class="screen">
+  <div class="game-header">
+    <div style="font-weight:700;font-size:16px">FRENTE</div>
+    <button id="btn-pause" style="padding:6px 12px;font-size:13px">⏸ Menú</button>
+  </div>
+  <div class="sc"><span id="pb" style="color:var(--bl)">Tú 0%</span><span id="pr" style="color:var(--rd)">Enemigos 0%</span></div>
+  <div class="bar" id="territory-bar"></div>
+  <canvas id="c" aria-label="Mapa del juego"></canvas>
+  <div class="res"><div class="rb"><i id="rf"></i></div><span id="rn">5</span></div>
+  <div class="cards" id="cards"></div>
+  <p id="hint">Toca tu unidad para seleccionarla y el mapa para moverla. Despliega refuerzos en tu territorio. Entra en trincheras para cubrirte.</p>
+</div>
+
+<!-- MODAL DE PAUSA -->
+<div id="modal-pause" class="modal-overlay">
+  <div class="modal-card">
+    <h3 class="modal-title">Juego Pausado</h3>
+    <button id="btn-resume" class="menu-btn primary">Continuar</button>
+    <button id="btn-quit" class="menu-btn danger">Rendirse / Salir al Menú</button>
+  </div>
+</div>
+
+<!-- MODAL DE FIN DE PARTIDA -->
+<div id="modal-end" class="modal-overlay">
+  <div class="modal-card">
+    <h3 id="end-title" class="modal-title">¡Victoria!</h3>
+    <p id="end-desc" style="font-size:14px;color:var(--fg);margin:4px 0 12px"></p>
+    <button id="btn-end-return" class="menu-btn primary">Volver al Menú</button>
+  </div>
+</div>
+
 </main>
 <script type="module" src="src/main.js"></script>
 <script>
