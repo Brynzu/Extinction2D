@@ -24,12 +24,14 @@ export function generateRoomCode() {
 
 const PEER_PREFIX = 'FRENTE-GAME-';
 
-// Servidores STUN y TURN globales gratuitos para atravesar NAT restringidos e intercontinentales (Alemania - Venezuela)
+// Robust STUN & TURN Relay Servers for Intercontinental / CGNAT traversal (e.g. Europe - South America)
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
-  { urls: 'stun:openrelay.metered.ca:80' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun4.l.google.com:19302' },
+  { urls: 'stun:global.stun.twilio.com:3478' },
   {
     urls: 'turn:openrelay.metered.ca:80',
     username: 'openrelayproject',
@@ -61,6 +63,7 @@ export function createHost(roomCode, handlers) {
       debug: 1,
       config: {
         iceServers: ICE_SERVERS,
+        iceTransportPolicy: 'all',
       },
     });
 
@@ -123,6 +126,7 @@ export function joinRoom(roomCode, handlers) {
       debug: 1,
       config: {
         iceServers: ICE_SERVERS,
+        iceTransportPolicy: 'all',
       },
     });
 
@@ -130,14 +134,17 @@ export function joinRoom(roomCode, handlers) {
 
     peer.on('open', (id) => {
       myPeerId = id;
-      const conn = peer.connect(fullId, { reliable: true });
+      const conn = peer.connect(fullId, {
+        reliable: true,
+        serialization: 'json',
+      });
 
       timeoutTimer = setTimeout(() => {
         if (connections.length === 0) {
           if (peer) peer.destroy();
-          reject(new Error('Tiempo de espera agotado. No se pudo conectar con el anfitrión.'));
+          reject(new Error('Tiempo de espera agotado. No se pudo conectar con el anfitrión. Intenta de nuevo.'));
         }
-      }, 12000);
+      }, 20000);
 
       conn.on('open', () => {
         if (timeoutTimer) clearTimeout(timeoutTimer);

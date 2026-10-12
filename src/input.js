@@ -87,12 +87,17 @@ export function initInput(humanPlayerGetter, playersGetter, netModeGetter) {
       const c = CARDS[humanPlayer.sel];
       if (cnt(humanPlayer.id) + c.k > CONFIG.GAME.MAX_UNITS_PER_SIDE) {
         msg('Límite de unidades alcanzado.');
-      } else {
+      } else if (humanPlayer.res >= c.c && humanPlayer.cds[humanPlayer.sel] <= 0) {
+        // En multijugador cliente: pre-deducir recursos visualmente pero dejar que el Host autorice el despliegue
+        if (isMultiplayer && !isHost) {
+          humanPlayer.res -= c.c;
+          humanPlayer.cds[humanPlayer.sel] = c.cd;
+        }
         executeGameAction(
           {
             type: ACTION_TYPES.DEPLOY_CARD,
             playerId: humanPlayer.id,
-            data: { cardIndex: humanPlayer.sel, playerObj: humanPlayer },
+            data: { cardIndex: humanPlayer.sel },
           },
           isHost,
           isMultiplayer
