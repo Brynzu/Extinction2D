@@ -21,15 +21,14 @@ export function initGame() {
   initMap();
 
   // Inicializar unidades iniciales desplegando un Escuadrón de Asalto por bando
-  // Azul (Bando 1, con squadId y roles completos)
-  for (let i = 0; i < 4; i++) {
-    const roles = ['leader', 'machinegunner', 'grenadier', 'rifleman'];
-    addUnit(1, CONFIG.HQ.BLUE_HQ.x + (i - 1.5) * 1.5, CONFIG.HQ.BLUE_HQ.y - 2, CONFIG.HQ.BLUE_HQ.x + (i - 1.5) * 1.5, CONFIG.HQ.BLUE_HQ.y - 2, false, 1, roles[i]);
+  // Azul (Bando 1, con squadId y roles completos de 5 miembros)
+  const roles = ['leader', 'machinegunner', 'grenadier', 'rifleman', 'rifleman'];
+  for (let i = 0; i < 5; i++) {
+    addUnit(1, CONFIG.HQ.BLUE_HQ.x + (i - 2) * 1.2, CONFIG.HQ.BLUE_HQ.y - 2, CONFIG.HQ.BLUE_HQ.x + (i - 2) * 1.2, CONFIG.HQ.BLUE_HQ.y - 2, false, 1, roles[i]);
   }
-  // Rojo (Bando -1, con squadId y roles completos)
-  for (let i = 0; i < 4; i++) {
-    const roles = ['leader', 'machinegunner', 'grenadier', 'rifleman'];
-    addUnit(-1, CONFIG.HQ.RED_HQ.x + (i - 1.5) * 1.5, CONFIG.HQ.RED_HQ.y + 2, CONFIG.HQ.RED_HQ.x + (i - 1.5) * 1.5, CONFIG.HQ.RED_HQ.y + 2, false, 2, roles[i]);
+  // Rojo (Bando -1, con squadId y roles completos de 5 miembros)
+  for (let i = 0; i < 5; i++) {
+    addUnit(-1, CONFIG.HQ.RED_HQ.x + (i - 2) * 1.2, CONFIG.HQ.RED_HQ.y + 2, CONFIG.HQ.RED_HQ.x + (i - 2) * 1.2, CONFIG.HQ.RED_HQ.y + 2, false, 2, roles[i]);
   }
 
   initCardsUI(P);
@@ -73,17 +72,6 @@ function step(now) {
   }
 
   for (const u of U) {
-    if (u.t < 0) {
-      u.tm -= dt;
-      if (u.tm <= 0 && !u.cb && !u.gar) {
-        u.auto = false;
-        u.tx = 1 + Math.random() * (C - 2);
-        u.ty = 10 + Math.random() * (R - 20);
-        if (isT(Math.floor(u.tx), Math.floor(u.ty))) u.tx = cl(u.tx + 2, 0.5, C - 0.5);
-        u.tm = 3 + Math.random() * 4;
-      }
-    }
-
     if (u.tr) {
       if (Math.hypot(u.tx - u.x, u.ty - u.y) < 0.5) {
         if (u.path.length) {
