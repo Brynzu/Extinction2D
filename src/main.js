@@ -212,16 +212,20 @@ function startGame() {
   clearBullets();
   resetSquadCounter();
 
-  // Calcular escala de mapa y posiciones de HQ
-  const totalArmies = spSettings.playersConfig.length;
-  const mapScale = totalArmies >= 5 ? 2.0 : totalArmies >= 3 ? 1.5 : 1.0;
+  humanPlayer = spSettings.playersConfig.find((p) => p.isHuman) || spSettings.playersConfig[0];
+  const activeCombatants = spSettings.playersConfig.filter((p) => p.team !== 'SPECTATOR');
+
+  // Calcular escala de mapa y posiciones de HQ según los combatientes activos
+  const totalActiveArmies = activeCombatants.length;
+  const mapScale = totalActiveArmies >= 5 ? 2.0 : totalActiveArmies >= 3 ? 1.5 : 1.0;
   const cols = Math.round(CONFIG.GRID.COLUMNS * mapScale);
   const rows = Math.round(CONFIG.GRID.ROWS * mapScale);
   const hqPositions = CONFIG.getHQPositions(cols, rows);
 
-  // Inicializar objetos de jugador
-  gamePlayers = spSettings.playersConfig.map((p, idx) => {
-    const pos = hqPositions[idx];
+  let activeIdx = 0;
+  gamePlayers = spSettings.playersConfig.map((p) => {
+    const isSpectator = p.team === 'SPECTATOR';
+    const pos = !isSpectator && hqPositions[activeIdx] ? hqPositions[activeIdx++] : null;
     return {
       ...p,
       res: CONFIG.GAME.INITIAL_RESOURCES,
@@ -229,15 +233,17 @@ function startGame() {
       sel: -1,
       aiTm: 2 + Math.random() * 2,
       aiGt: 3,
-      hq: {
-        x: pos.hq.x,
-        y: pos.hq.y,
-        spawnX: pos.spawn.x,
-        spawnY: pos.spawn.y,
-        hp: CONFIG.HQ_MAX_HP,
-        maxHp: CONFIG.HQ_MAX_HP,
-        alive: true,
-      },
+      hq: pos
+        ? {
+            x: pos.hq.x,
+            y: pos.hq.y,
+            spawnX: pos.spawn.x,
+            spawnY: pos.spawn.y,
+            hp: CONFIG.HQ_MAX_HP,
+            maxHp: CONFIG.HQ_MAX_HP,
+            alive: true,
+          }
+        : null,
     };
   });
 
@@ -245,9 +251,10 @@ function startGame() {
 
   initMap(spSettings.mapPreset, gamePlayers);
 
-  // Inicializar tropas de cada jugador
+  // Inicializar tropas solo para jugadores combatientes activos
   const roles = ['leader', 'machinegunner', 'grenadier', 'rifleman', 'rifleman'];
   gamePlayers.forEach((p) => {
+    if (p.team === 'SPECTATOR' || !p.hq) return;
     for (let i = 0; i < 5; i++) {
       addUnit(
         p.id,
@@ -264,10 +271,14 @@ function startGame() {
 
   initCardsUI(humanPlayer);
 
-  // Centrar cámara en el HQ del jugador principal
+  // Centrar cámara en el HQ del jugador principal o en el centro si es espectador
   if (humanPlayer && humanPlayer.hq) {
     camera.x = humanPlayer.hq.x * CONFIG.GRID.CELL_SIZE - cv.width / (2 * camera.zoom);
     camera.y = humanPlayer.hq.y * CONFIG.GRID.CELL_SIZE - cv.height / (2 * camera.zoom);
+    clampCamera();
+  } else {
+    camera.x = (cols * CONFIG.GRID.CELL_SIZE) / 2 - cv.width / (2 * camera.zoom);
+    camera.y = (rows * CONFIG.GRID.CELL_SIZE) / 2 - cv.height / (2 * camera.zoom);
     clampCamera();
   }
 
@@ -292,6 +303,23 @@ function checkVictoryDefeat() {
         }
       }
     }
+  }
+
+  // Si se está en Modo Espectador
+  if (humanPlayer.team === 'SPECTATOR' || humanPlayer.isSpectator) {
+    for (const [team, count] of teamTerritory.entries()) {
+      if (team !== 'SPECTATOR' && count / totalCells >= 0.65) {
+        endGame(true, `El Equipo ${team} ha conquistado más del 65% del territorio.`);
+        return;
+      }
+    }
+    const combatantTeams = new Set(gamePlayers.filter((p) => p.team !== 'SPECTATOR' && p.hq && p.hq.alive).map((p) => p.team));
+    if (combatantTeams.size === 1) {
+      const winningTeam = Array.from(combatantTeams)[0];
+      endGame(true, `El Equipo ${winningTeam} ha eliminado a todos sus rivales.`);
+      return;
+    }
+    return;
   }
 
   const humanTeam = humanPlayer.team;
