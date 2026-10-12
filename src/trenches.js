@@ -249,7 +249,7 @@ export function orderTrench(us, cx, cy) {
             oc = Math.min(oc, od[ny * C + nx] + 1);
           }
         }
-        const c = oc + dm[j] + (T[j] === 4 ? 3 : 0);
+        const c = oc * 5 + dm[j] + (T[j] === 4 ? 3 : 0);
         if (c < bc) {
           bc = c;
           best = j;
