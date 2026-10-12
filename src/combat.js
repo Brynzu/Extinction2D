@@ -241,7 +241,7 @@ export function updateCombat(dt) {
       if (isLmg) {
         u.burstShots = (u.burstShots || 0) + 1;
         if (u.burstShots < 5) {
-          attackCooldown = 0.14; // Dispara 5 balas en 0.7s (0.14s * 5 = 0.70s)
+          attackCooldown = 0.07; // Cadencia duplicada: Dispara 5 balas a 0.07s por disparo
         } else {
           u.burstShots = 0;
           attackCooldown = 1.5; // Pausa de 1.5s entre ráfagas

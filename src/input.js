@@ -282,7 +282,14 @@ export function initInput(P) {
         const y0 = Math.min(box[1], box[3]);
         const y1 = Math.max(box[1], box[3]);
         const inn = U.filter((u) => u.t > 0 && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
-        U.forEach((u) => (u.s = inn.includes(u)));
+        const touchedSquadIds = new Set(
+          inn.filter((u) => u.squadId > 0).map((u) => u.squadId)
+        );
+        U.forEach((u) => {
+          if (u.t > 0) {
+            u.s = inn.includes(u) || (u.squadId > 0 && touchedSquadIds.has(u.squadId));
+          }
+        });
         sounds.playSelect();
         box = null;
       } else if (dist <= 8 && !isPanning) {

@@ -35,10 +35,10 @@ export const CONFIG = {
 
   // Cartas de despliegue
   CARDS: [
-    { n: 'Escuadrón Asalto', k: 4, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
-    { n: 'Escuadrón Asalto', k: 4, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
+    { n: 'Escuadrón Asalto', k: 5, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
+    { n: 'Escuadrón Asalto', k: 5, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
     { n: 'Dron Kamikaze', k: 1, hp: 1, sp: 4.5, c: 2, cd: 6, isDrone: true },
-    { n: 'Escuadrón Asalto', k: 4, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
+    { n: 'Escuadrón Asalto', k: 5, hp: 3, sp: 1, c: 3, cd: 16, isDrone: false },
   ],
 
   // Atributos y movimiento de unidades
@@ -62,8 +62,8 @@ export const CONFIG = {
     BULLET_DAMAGE: 1,
     BULLET_HIT_RADIUS: 0.6,
     BULLET_WIDTH: 1.275, // -15% grosor
-    DISPERSION_BASE: 0.08,
-    DISPERSION_DIST: 0.02,
+    DISPERSION_BASE: 0.056,
+    DISPERSION_DIST: 0.014,
     DISPERSION_MOVING_MULT: 1.5,
     DISPERSION_TRENCH_DEEP_MULT: 0.45,
     DISPERSION_DRONE_MULT: 2.45, // Mucha menor precisión al disparar a drones (reducida dispersión un 30% -> +30% precisión)
