@@ -98,7 +98,7 @@ export function draw(P, box, setCounts) {
     for (let x = 0; x < C; x++) {
       const k = T[y * C + x];
       if (k >= 3) {
-        g.fillStyle = k === 3 ? '#5a4631' : '#17120d';
+        g.fillStyle = k === 3 ? '#96724E' : '#4A3525';
         g.fillRect(x * S, y * S, S, S);
       }
     }
@@ -124,7 +124,7 @@ export function draw(P, box, setCounts) {
 
   // Unidades
   for (const u of U) {
-    if (u.t < 0 && !u.seen) continue;
+    // Unidades enemigas siempre visibles para prueba/testeo
     if (u.s) {
       g.strokeStyle = '#fff';
       g.setLineDash([3, 3]);
@@ -258,7 +258,7 @@ function drawMinimap() {
   const scaleY = mh / (R * S);
 
   for (const u of U) {
-    if (u.t < 0 && !u.seen) continue;
+    // Visibles en minimapa para testing
     g.fillStyle = u.t > 0 ? '#3b7fd0' : '#cf4a3a';
     g.fillRect(mx + u.x * S * scaleX - 1, my + u.y * S * scaleY - 1, 3, 3);
   }
