@@ -1,13 +1,21 @@
 import { CONFIG } from './config.js';
 
-export const C = CONFIG.GRID.COLUMNS;
-export const R = CONFIG.GRID.ROWS;
+export let C = CONFIG.GRID.COLUMNS;
+export let R = CONFIG.GRID.ROWS;
 export const S = CONFIG.GRID.CELL_SIZE;
 
-export const v = new Float32Array(C * R);
-export const T = new Uint8Array(C * R);
-export const TC = new Int16Array(C * R).fill(-1);
+export let v = new Float32Array(C * R);
+export let T = new Uint8Array(C * R);
+export let TC = new Int16Array(C * R).fill(-1);
 export const TRL = [];
+
+export function updateMapDimensions(cols, rows) {
+  C = cols;
+  R = rows;
+  v = new Float32Array(C * R);
+  T = new Uint8Array(C * R);
+  TC = new Int16Array(C * R).fill(-1);
+}
 
 export const tt = (x, y) => T[Math.max(0, Math.min(R - 1, Math.floor(y))) * C + Math.max(0, Math.min(C - 1, Math.floor(x)))];
 export const deep = (e) => e.tr && tt(e.x, e.y) === 4;
@@ -111,18 +119,29 @@ function generateLinearTrenchNetwork(startX, startY) {
 }
 
 export function initMap(preset = 'default', players = []) {
+  let scale = 1.0;
+  if (players.length >= 5) {
+    scale = 2.0; // x2.0 para 5 o 6 ejércitos
+  } else if (players.length >= 3) {
+    scale = 1.5; // x1.5 para 3 o 4 ejércitos
+  }
+
+  const newC = Math.round(CONFIG.GRID.COLUMNS * scale);
+  const newR = Math.round(CONFIG.GRID.ROWS * scale);
+  updateMapDimensions(newC, newR);
+
   T.fill(0);
   v.fill(0);
 
-  let numForests = 35;
-  let numTrenches = 3;
+  let numForests = Math.round(35 * scale * scale);
+  let numTrenches = Math.round(3 * scale);
 
   if (preset === 'forest') {
-    numForests = 75;
-    numTrenches = 1;
+    numForests = Math.round(75 * scale * scale);
+    numTrenches = Math.round(1 * scale);
   } else if (preset === 'trench') {
-    numForests = 10;
-    numTrenches = 7;
+    numForests = Math.round(10 * scale * scale);
+    numTrenches = Math.round(7 * scale);
   }
 
   // Generar bosques distribuidos
