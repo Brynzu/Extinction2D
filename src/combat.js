@@ -57,12 +57,17 @@ export function areEnemies(id1, id2, players = []) {
   return p1.team !== p2.team;
 }
 
-export const canSee = (x, y, humanPlayerId = 1) =>
-  U.some((u) => {
-    if (u.playerId !== humanPlayerId && u.t !== humanPlayerId) return false;
+export const canSee = (x, y, humanPlayer, players = []) => {
+  if (!humanPlayer) return true;
+  const humanTeam = humanPlayer.team;
+  return U.some((u) => {
+    const uPid = u.playerId || u.t;
+    const p = players.find((pl) => pl.id === uPid);
+    if (!p || p.team !== humanTeam) return false;
     const vision = u.isDrone ? CONFIG.VISIBILITY.VISION_DRONE : CONFIG.VISIBILITY.VISION_DEFAULT;
     return Math.hypot(u.x - x, u.y - y) <= vision;
   });
+};
 
 export function vis(dt, players = []) {
   for (const e of U) {
