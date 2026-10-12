@@ -1,7 +1,7 @@
 // Network layer for PeerJS P2P WebRTC
 
 let peer = null;
-let connections = []; // List of connected DataConnections
+let connections = [];
 let isHost = false;
 let myPeerId = null;
 
@@ -24,6 +24,29 @@ export function generateRoomCode() {
 
 const PEER_PREFIX = 'FRENTE-GAME-';
 
+// Servidores STUN y TURN globales gratuitos para atravesar NAT restringidos e intercontinentales (Alemania - Venezuela)
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:openrelay.metered.ca:80' },
+  {
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+];
+
 export function createHost(roomCode, handlers) {
   return new Promise((resolve, reject) => {
     isHost = true;
@@ -36,6 +59,9 @@ export function createHost(roomCode, handlers) {
 
     peer = new window.Peer(fullId, {
       debug: 1,
+      config: {
+        iceServers: ICE_SERVERS,
+      },
     });
 
     peer.on('open', (id) => {
@@ -95,13 +121,26 @@ export function joinRoom(roomCode, handlers) {
 
     peer = new window.Peer({
       debug: 1,
+      config: {
+        iceServers: ICE_SERVERS,
+      },
     });
+
+    let timeoutTimer = null;
 
     peer.on('open', (id) => {
       myPeerId = id;
       const conn = peer.connect(fullId, { reliable: true });
 
+      timeoutTimer = setTimeout(() => {
+        if (connections.length === 0) {
+          if (peer) peer.destroy();
+          reject(new Error('Tiempo de espera agotado. No se pudo conectar con el anfitrión.'));
+        }
+      }, 12000);
+
       conn.on('open', () => {
+        if (timeoutTimer) clearTimeout(timeoutTimer);
         connections.push(conn);
         if (handlers.onConnect) {
           handlers.onConnect(conn);
@@ -129,12 +168,14 @@ export function joinRoom(roomCode, handlers) {
       });
 
       conn.on('error', (err) => {
+        if (timeoutTimer) clearTimeout(timeoutTimer);
         console.error('Connection error:', err);
         reject(err);
       });
     });
 
     peer.on('error', (err) => {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       console.error('Peer error:', err);
       reject(err);
     });
