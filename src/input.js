@@ -1,3 +1,5 @@
+import { ACTION_TYPES, executeGameAction } from './actions.js';
+import { areEnemies } from './combat.js';
 import { CONFIG } from './config.js';
 import { C, R, S, T, isT } from './map.js';
 import { cv, msg } from './render.js';
@@ -51,31 +53,34 @@ export function screenToWorld(sx, sy) {
   return [worldPx / S, worldPy / S, canvasX, canvasY];
 }
 
-import { areEnemies } from './combat.js';
-
-export function initInput(humanPlayerGetter, playersGetter) {
+export function initInput(humanPlayerGetter, playersGetter, netModeGetter) {
   clampCamera();
 
-  cv.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    const oldZoom = camera.zoom;
-    const newZoom = Math.max(CONFIG.CAMERA.MIN_ZOOM, Math.min(CONFIG.CAMERA.MAX_ZOOM, oldZoom * zoomFactor));
+  cv.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      const oldZoom = camera.zoom;
+      const newZoom = Math.max(CONFIG.CAMERA.MIN_ZOOM, Math.min(CONFIG.CAMERA.MAX_ZOOM, oldZoom * zoomFactor));
 
-    const rect = cv.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left) * (cv.width / rect.width);
-    const mouseY = (e.clientY - rect.top) * (cv.height / rect.height);
+      const rect = cv.getBoundingClientRect();
+      const mouseX = (e.clientX - rect.left) * (cv.width / rect.width);
+      const mouseY = (e.clientY - rect.top) * (cv.height / rect.height);
 
-    camera.x += mouseX / oldZoom - mouseX / newZoom;
-    camera.y += mouseY / oldZoom - mouseY / newZoom;
-    camera.zoom = newZoom;
-    clampCamera();
-  }, { passive: false });
+      camera.x += mouseX / oldZoom - mouseX / newZoom;
+      camera.y += mouseY / oldZoom - mouseY / newZoom;
+      camera.zoom = newZoom;
+      clampCamera();
+    },
+    { passive: false }
+  );
 
   const tap = (worldX, worldY) => {
     sounds.init();
     const humanPlayer = humanPlayerGetter();
     const players = playersGetter();
+    const { isMultiplayer, isHost } = netModeGetter ? netModeGetter() : { isMultiplayer: false, isHost: false };
     if (!humanPlayer) return;
 
     if (humanPlayer.sel >= 0) {
@@ -83,9 +88,15 @@ export function initInput(humanPlayerGetter, playersGetter) {
       if (cnt(humanPlayer.id) + c.k > CONFIG.GAME.MAX_UNITS_PER_SIDE) {
         msg('Límite de unidades alcanzado.');
       } else {
-        humanPlayer.res -= c.c;
-        humanPlayer.cds[humanPlayer.sel] = c.cd;
-        deploy(humanPlayer, humanPlayer.sel);
+        executeGameAction(
+          {
+            type: ACTION_TYPES.DEPLOY_CARD,
+            playerId: humanPlayer.id,
+            data: { cardIndex: humanPlayer.sel, playerObj: humanPlayer },
+          },
+          isHost,
+          isMultiplayer
+        );
         sounds.playDeploy();
         humanPlayer.sel = -1;
       }
@@ -105,16 +116,18 @@ export function initInput(humanPlayerGetter, playersGetter) {
     )[0];
 
     if (enemyHit && selectedUnits.length > 0) {
-      selectedUnits.forEach((u) => {
-        u.attackTarget = enemyHit;
-        u.savedMoveTarget = null;
-        u.auto = false;
-        u.enter = false;
-        u.hold = null;
-        u.post = null;
-        u.tx = enemyHit.x;
-        u.ty = enemyHit.y;
-      });
+      const unitIndices = selectedUnits.map((u) => U.indexOf(u)).filter((idx) => idx !== -1);
+      const targetUnitIdx = U.indexOf(enemyHit);
+
+      executeGameAction(
+        {
+          type: ACTION_TYPES.ATTACK_UNIT,
+          playerId: humanPlayer.id,
+          data: { unitIndices, targetUnitIdx },
+        },
+        isHost,
+        isMultiplayer
+      );
       sounds.playSelect();
       return;
     }
@@ -144,63 +157,49 @@ export function initInput(humanPlayerGetter, playersGetter) {
     const cx = Math.floor(worldX);
     const cy = Math.floor(worldY);
 
-    selectedUnits.forEach((u, i) => {
-      u.attackTarget = null;
-      u.savedMoveTarget = null;
-      const ox = cl(worldX + ((i % 3) - 1) * 1.3, 0.5, C - 0.5);
-      const oy = cl(worldY + (Math.floor(i / 3) - 1) * 1.3, 0.5, R - 0.5);
-      if (isT(cx, cy) && !u.isDrone) {
-        if (i === 0) orderTrench(selectedUnits.filter((w) => !w.isDrone), cx, cy);
-      } else if (u.tr) {
-        // Al tocar fuera de la trinchera, la unidad dentro de trinchera baja/alta busca la salida superficial (T===3) más cercana
-        const p = bfs(Math.floor(u.x), Math.floor(u.y), (a, b) => T[b * C + a] === 3);
-        if (p) {
-          if (u.cb) {
-            u.savedMoveTarget = {
-              tx: u.tx,
-              ty: u.ty,
-              auto: u.auto,
-              enter: u.enter,
-              gc: u.gc,
-              path: p,
-              exit: [ox, oy],
-              hold: null,
-              post: null,
-            };
-          } else {
-            u.path = p;
-            u.exit = [ox, oy];
-            u.hold = null;
-            u.post = null;
+    if (selectedUnits.length > 0) {
+      const unitIndices = selectedUnits.map((u) => U.indexOf(u)).filter((idx) => idx !== -1);
+
+      if (isT(cx, cy) && selectedUnits.some((w) => !w.isDrone)) {
+        executeGameAction(
+          {
+            type: ACTION_TYPES.ENTER_TRENCH,
+            playerId: humanPlayer.id,
+            data: { unitIndices, cx, cy },
+          },
+          isHost,
+          isMultiplayer
+        );
+      } else if (selectedUnits.some((u) => u.tr)) {
+        const u = selectedUnits.find((w) => w.tr);
+        if (u) {
+          const p = bfs(Math.floor(u.x), Math.floor(u.y), (a, b) => T[b * C + a] === 3);
+          if (p) {
+            const ox = cl(worldX, 0.5, C - 0.5);
+            const oy = cl(worldY, 0.5, R - 0.5);
+            executeGameAction(
+              {
+                type: ACTION_TYPES.EXIT_TRENCH,
+                playerId: humanPlayer.id,
+                data: { unitIndices, ox, oy, path: p },
+              },
+              isHost,
+              isMultiplayer
+            );
           }
         }
       } else {
-        u.auto = false;
-        u.enter = false;
-        u.hold = null;
-        u.post = null;
-        const bad = isT(Math.floor(ox), Math.floor(oy));
-        const targetX = u.isDrone ? worldX : bad ? worldX : ox;
-        const targetY = u.isDrone ? worldY : bad ? worldY : oy;
-
-        if (u.cb) {
-          u.savedMoveTarget = {
-            tx: targetX,
-            ty: targetY,
-            auto: false,
-            enter: false,
-            gc: null,
-            path: [],
-            exit: null,
-            hold: null,
-            post: null,
-          };
-        } else {
-          u.tx = targetX;
-          u.ty = targetY;
-        }
+        executeGameAction(
+          {
+            type: ACTION_TYPES.MOVE_UNITS,
+            playerId: humanPlayer.id,
+            data: { unitIndices, targetX: worldX, targetY: worldY, mapCols: C, mapRows: R },
+          },
+          isHost,
+          isMultiplayer
+        );
       }
-    });
+    }
   };
 
   cv.addEventListener('pointerdown', (e) => {
@@ -289,9 +288,7 @@ export function initInput(humanPlayerGetter, playersGetter) {
         const humanPlayer = humanPlayerGetter();
         const myId = humanPlayer ? humanPlayer.id : 1;
         const inn = U.filter((u) => (u.playerId === myId || u.t === myId) && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
-        const touchedSquadIds = new Set(
-          inn.filter((u) => u.squadId > 0).map((u) => u.squadId)
-        );
+        const touchedSquadIds = new Set(inn.filter((u) => u.squadId > 0).map((u) => u.squadId));
         U.forEach((u) => {
           if (u.playerId === myId || u.t === myId) {
             u.s = inn.includes(u) || (u.squadId > 0 && touchedSquadIds.has(u.squadId));

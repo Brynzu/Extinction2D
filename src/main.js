@@ -1,8 +1,10 @@
+import { ACTION_TYPES, executeGameAction, processActionLocally } from './actions.js';
 import { aiPlay, aiTrench } from './ai.js';
 import { clearBullets, updateCombat, vis } from './combat.js';
 import { CONFIG } from './config.js';
 import { camera, clampCamera, getBox, initInput } from './input.js';
 import { C, R, T, isT, initMap, v } from './map.js';
+import { createHost, disconnectNet, generateRoomCode, getIsHost, joinRoom, sendNetMessage } from './net.js';
 import { cv, draw, initCardsUI, resizeCanvas, ui } from './render.js';
 import { bfs, postTick, wpt } from './trenches.js';
 import { U, addUnit, cl, resetSquadCounter, sep } from './units.js';
@@ -16,7 +18,15 @@ let animationFrameId = null;
 let lastTime = performance.now();
 let pt = 0;
 
-// Configuración por defecto de la pantalla Un Jugador
+// Multiplayer State
+let isMultiplayer = false;
+let isHost = false;
+let currentRoomCode = '';
+let mpLobbyPlayers = [];
+let netSyncTimer = 0;
+let myPlayerIdInGame = 1;
+
+// Singleplayer settings
 const spSettings = {
   mapPreset: 'default',
   aiCount: 1,
@@ -29,18 +39,38 @@ const COLOR_KEYS = Object.keys(CONFIG.COLORS);
 function setupMenuUI() {
   const screenMain = document.getElementById('screen-main');
   const screenSp = document.getElementById('screen-sp');
+  const screenMpSelect = document.getElementById('screen-mp-select');
+  const screenMpLobby = document.getElementById('screen-mp-lobby');
   const screenGame = document.getElementById('screen-game');
 
   const btnSingleplayer = document.getElementById('btn-singleplayer');
+  const btnMultiplayer = document.getElementById('btn-multiplayer');
+
+  // SP UI Elements
   const btnSpBack = document.getElementById('btn-sp-back');
   const btnSpStart = document.getElementById('btn-sp-start');
-
   const spMapEl = document.getElementById('sp-map');
   const spAiCountEl = document.getElementById('sp-ai-count');
   const lblAiCountEl = document.getElementById('lbl-ai-count');
   const spModeEl = document.getElementById('sp-mode');
   const playersListEl = document.getElementById('players-list');
 
+  // MP Selection Elements
+  const btnMpCreateRoom = document.getElementById('btn-mp-create-room');
+  const btnMpJoinRoom = document.getElementById('btn-mp-join-room');
+  const btnMpSelectBack = document.getElementById('btn-mp-select-back');
+  const mpRoomCodeInput = document.getElementById('mp-room-code-input');
+  const mpStatusMsg = document.getElementById('mp-status-msg');
+
+  // MP Lobby Elements
+  const mpLobbyCode = document.getElementById('mp-lobby-code');
+  const mpHostSettings = document.getElementById('mp-host-settings');
+  const mpMapEl = document.getElementById('mp-map');
+  const mpPlayersListEl = document.getElementById('mp-players-list');
+  const btnMpLobbyBack = document.getElementById('btn-mp-lobby-back');
+  const btnMpStart = document.getElementById('btn-mp-start');
+
+  // In-Game UI Elements
   const modalPause = document.getElementById('modal-pause');
   const btnPause = document.getElementById('btn-pause');
   const btnResume = document.getElementById('btn-resume');
@@ -52,15 +82,221 @@ function setupMenuUI() {
   const endDescEl = document.getElementById('end-desc');
 
   function showScreen(screen) {
-    [screenMain, screenSp, screenGame].forEach((s) => s.classList.remove('active'));
+    [screenMain, screenSp, screenMpSelect, screenMpLobby, screenGame].forEach((s) => s.classList.remove('active'));
     screen.classList.add('active');
   }
 
   btnSingleplayer.onclick = () => {
+    isMultiplayer = false;
     updatePlayersConfig();
     showScreen(screenSp);
   };
 
+  btnMultiplayer.onclick = () => {
+    isMultiplayer = true;
+    mpStatusMsg.textContent = '';
+    mpRoomCodeInput.value = '';
+    showScreen(screenMpSelect);
+  };
+
+  btnMpSelectBack.onclick = () => {
+    disconnectNet();
+    showScreen(screenMain);
+  };
+
+  // --- MP HOST ROOM CREATION ---
+  btnMpCreateRoom.onclick = async () => {
+    isHost = true;
+    currentRoomCode = generateRoomCode();
+    mpStatusMsg.textContent = 'Creando sala...';
+
+    try {
+      await createHost(currentRoomCode, {
+        onClientConnect: (conn) => {
+          const newPlayerId = mpLobbyPlayers.length + 1;
+          const defaultColors = ['red', 'green', 'yellow', 'purple', 'orange'];
+          mpLobbyPlayers.push({
+            id: newPlayerId,
+            name: `Jugador ${newPlayerId}`,
+            isHuman: true,
+            team: newPlayerId % 2 === 1 ? 'A' : 'B',
+            colorKey: defaultColors[(newPlayerId - 2) % defaultColors.length],
+            peerConn: conn,
+          });
+
+          broadcastLobbyState();
+          renderMpPlayersList();
+        },
+        onClientDisconnect: (conn) => {
+          mpLobbyPlayers = mpLobbyPlayers.filter((p) => p.peerConn !== conn);
+          broadcastLobbyState();
+          renderMpPlayersList();
+        },
+        onData: (data) => {
+          handleIncomingNetData(data);
+        },
+      });
+
+      mpLobbyCode.textContent = currentRoomCode;
+      mpHostSettings.style.display = 'block';
+      btnMpStart.style.display = 'block';
+
+      mpLobbyPlayers = [
+        {
+          id: 1,
+          name: 'Tú (Host)',
+          isHuman: true,
+          team: 'A',
+          colorKey: 'blue',
+        },
+      ];
+
+      renderMpPlayersList();
+      showScreen(screenMpLobby);
+    } catch (err) {
+      mpStatusMsg.textContent = 'Error al crear la sala. Reintenta.';
+      console.error(err);
+    }
+  };
+
+  // --- MP CLIENT JOIN ROOM ---
+  btnMpJoinRoom.onclick = async () => {
+    const code = mpRoomCodeInput.value.trim().toUpperCase();
+    if (code.length !== 4) {
+      mpStatusMsg.textContent = 'Ingresa un código válido de 4 caracteres.';
+      return;
+    }
+
+    isHost = false;
+    currentRoomCode = code;
+    mpStatusMsg.textContent = 'Conectando con el Host...';
+
+    try {
+      await joinRoom(code, {
+        onConnect: () => {
+          mpStatusMsg.textContent = '¡Conectado!';
+          mpLobbyCode.textContent = currentRoomCode;
+          mpHostSettings.style.display = 'none';
+          btnMpStart.style.display = 'none';
+          showScreen(screenMpLobby);
+        },
+        onDisconnect: () => {
+          alert('Se perdió la conexión con la sala.');
+          disconnectNet();
+          showScreen(screenMpSelect);
+        },
+        onData: (data) => {
+          handleIncomingNetData(data);
+        },
+      });
+    } catch (err) {
+      mpStatusMsg.textContent = 'No se pudo conectar a la sala.';
+      console.error(err);
+    }
+  };
+
+  btnMpLobbyBack.onclick = () => {
+    disconnectNet();
+    showScreen(screenMpSelect);
+  };
+
+  btnMpStart.onclick = () => {
+    if (!isHost) return;
+    const startAction = {
+      type: ACTION_TYPES.START_GAME,
+      data: {
+        mapPreset: mpMapEl.value,
+        playersConfig: mpLobbyPlayers.map((p) => ({
+          id: p.id,
+          name: p.name,
+          isHuman: true,
+          team: p.team,
+          colorKey: p.colorKey,
+        })),
+      },
+    };
+    sendNetMessage(startAction);
+    handleStartGameAction(startAction.data);
+  };
+
+  function broadcastLobbyState() {
+    sendNetMessage({
+      type: ACTION_TYPES.LOBBY_UPDATE,
+      data: {
+        players: mpLobbyPlayers.map((p) => ({
+          id: p.id,
+          name: p.name,
+          team: p.team,
+          colorKey: p.colorKey,
+        })),
+        mapPreset: mpMapEl.value,
+      },
+    });
+  }
+
+  function renderMpPlayersList() {
+    mpPlayersListEl.innerHTML = '';
+    mpLobbyPlayers.forEach((p) => {
+      const row = document.createElement('div');
+      row.className = 'player-row';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'player-name';
+      nameSpan.textContent = p.name;
+
+      if (isHost) {
+        // Selector de Color
+        const colorSelect = document.createElement('select');
+        colorSelect.className = 'player-select';
+        COLOR_KEYS.forEach((ck) => {
+          const opt = document.createElement('option');
+          opt.value = ck;
+          opt.textContent = CONFIG.COLORS[ck].name;
+          if (ck === p.colorKey) opt.selected = true;
+          colorSelect.appendChild(opt);
+        });
+        colorSelect.onchange = () => {
+          p.colorKey = colorSelect.value;
+          broadcastLobbyState();
+        };
+
+        // Selector de Equipo
+        const teamSelect = document.createElement('select');
+        teamSelect.className = 'player-select';
+        [
+          { val: 'A', label: 'Eq A' },
+          { val: 'B', label: 'Eq B' },
+          { val: 'C', label: 'Eq C' },
+          { val: 'D', label: 'Eq D' },
+        ].forEach((t) => {
+          const opt = document.createElement('option');
+          opt.value = t.val;
+          opt.textContent = t.label;
+          if (t.val === p.team) opt.selected = true;
+          teamSelect.appendChild(opt);
+        });
+        teamSelect.onchange = () => {
+          p.team = teamSelect.value;
+          broadcastLobbyState();
+        };
+
+        row.appendChild(nameSpan);
+        row.appendChild(colorSelect);
+        row.appendChild(teamSelect);
+      } else {
+        const infoSpan = document.createElement('span');
+        infoSpan.style.fontSize = '12px';
+        infoSpan.style.color = 'var(--mut)';
+        infoSpan.textContent = `Equipo ${p.team} (${CONFIG.COLORS[p.colorKey]?.name || p.colorKey})`;
+        row.appendChild(nameSpan);
+        row.appendChild(infoSpan);
+      }
+
+      mpPlayersListEl.appendChild(row);
+    });
+  }
+
+  // --- SP UI EVENTS ---
   btnSpBack.onclick = () => {
     showScreen(screenMain);
   };
@@ -93,7 +329,6 @@ function setupMenuUI() {
     const totalPlayers = 1 + spSettings.aiCount;
     spSettings.playersConfig = [];
 
-    // Jugador principal
     spSettings.playersConfig.push({
       id: 1,
       name: 'Tú',
@@ -103,17 +338,10 @@ function setupMenuUI() {
     });
 
     const defaultColors = ['red', 'green', 'yellow', 'purple', 'orange'];
-
     const half = Math.ceil(totalPlayers / 2);
 
     for (let i = 1; i < totalPlayers; i++) {
-      let defaultTeam = 'B';
-      if (spSettings.mode === 'ffa') {
-        defaultTeam = String.fromCharCode(65 + i); // A, B, C, D, E...
-      } else {
-        // 'teams'
-        defaultTeam = i < half ? 'A' : 'B';
-      }
+      let defaultTeam = spSettings.mode === 'ffa' ? String.fromCharCode(65 + i) : i < half ? 'A' : 'B';
 
       spSettings.playersConfig.push({
         id: i + 1,
@@ -129,7 +357,7 @@ function setupMenuUI() {
 
   function renderPlayersList() {
     playersListEl.innerHTML = '';
-    spSettings.playersConfig.forEach((p, idx) => {
+    spSettings.playersConfig.forEach((p) => {
       const row = document.createElement('div');
       row.className = 'player-row';
 
@@ -137,7 +365,6 @@ function setupMenuUI() {
       nameSpan.className = 'player-name';
       nameSpan.textContent = p.name + (p.isHuman ? ' (Tú)' : '');
 
-      // Selector de Color
       const colorSelect = document.createElement('select');
       colorSelect.className = 'player-select';
       COLOR_KEYS.forEach((ck) => {
@@ -151,7 +378,6 @@ function setupMenuUI() {
         p.colorKey = colorSelect.value;
       };
 
-      // Selector de Equipo
       const teamSelect = document.createElement('select');
       teamSelect.className = 'player-select';
       [
@@ -171,10 +397,8 @@ function setupMenuUI() {
       });
       teamSelect.onchange = () => {
         p.team = teamSelect.value;
-        if (p.team === 'SPECTATOR') p.isSpectator = true;
-        else p.isSpectator = false;
+        p.isSpectator = p.team === 'SPECTATOR';
 
-        // Si el jugador humano ya no es espectador y el contador de IA era 6, ajustarlo a 5
         if (p.isHuman && !p.isSpectator && spSettings.aiCount > 5) {
           spSettings.aiCount = 5;
           spAiCountEl.value = '5';
@@ -193,7 +417,7 @@ function setupMenuUI() {
   btnSpStart.onclick = () => {
     showScreen(screenGame);
     resizeCanvas();
-    startGame();
+    startGame(spSettings.mapPreset, spSettings.playersConfig);
   };
 
   btnPause.onclick = () => {
@@ -210,36 +434,113 @@ function setupMenuUI() {
     gameActive = false;
     isPaused = false;
     modalPause.classList.remove('active');
-    showScreen(screenSp);
+    if (isMultiplayer) disconnectNet();
+    showScreen(screenMain);
   };
 
   btnEndReturn.onclick = () => {
     modalEnd.classList.remove('active');
-    showScreen(screenSp);
+    if (isMultiplayer) disconnectNet();
+    showScreen(screenMain);
   };
 
-  // Inicializar inputs
-  initInput(() => humanPlayer, () => gamePlayers);
+  initInput(
+    () => humanPlayer,
+    () => gamePlayers,
+    () => ({ isMultiplayer, isHost })
+  );
 }
 
-function startGame() {
+function handleIncomingNetData(data) {
+  if (!data || !data.type) return;
+
+  switch (data.type) {
+    case ACTION_TYPES.LOBBY_UPDATE: {
+      if (!isHost) {
+        mpLobbyPlayers = data.data.players;
+        const mpPlayersListEl = document.getElementById('mp-players-list');
+        if (mpPlayersListEl) {
+          mpPlayersListEl.innerHTML = '';
+          mpLobbyPlayers.forEach((p) => {
+            const row = document.createElement('div');
+            row.className = 'player-row';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'player-name';
+            nameSpan.textContent = p.name;
+
+            const infoSpan = document.createElement('span');
+            infoSpan.style.fontSize = '12px';
+            infoSpan.style.color = 'var(--mut)';
+            infoSpan.textContent = `Equipo ${p.team} (${CONFIG.COLORS[p.colorKey]?.name || p.colorKey})`;
+
+            row.appendChild(nameSpan);
+            row.appendChild(infoSpan);
+            mpPlayersListEl.appendChild(row);
+          });
+        }
+      }
+      break;
+    }
+
+    case ACTION_TYPES.START_GAME: {
+      if (!isHost) {
+        handleStartGameAction(data.data);
+      }
+      break;
+    }
+
+    case ACTION_TYPES.SYNC_FULL_STATE: {
+      if (!isHost) {
+        applyFullStateSync(data.data);
+      }
+      break;
+    }
+
+    default: {
+      if (isHost) {
+        processActionLocally(data, gamePlayers);
+        sendNetMessage(data);
+      } else {
+        processActionLocally(data, gamePlayers);
+      }
+      break;
+    }
+  }
+}
+
+function handleStartGameAction({ mapPreset, playersConfig }) {
+  const screenGame = document.getElementById('screen-game');
+  [
+    document.getElementById('screen-main'),
+    document.getElementById('screen-sp'),
+    document.getElementById('screen-mp-select'),
+    document.getElementById('screen-mp-lobby'),
+  ].forEach((s) => s.classList.remove('active'));
+  screenGame.classList.add('active');
+  resizeCanvas();
+
+  let myPConfig = null;
+  if (isMultiplayer) {
+    if (isHost) {
+      myPConfig = playersConfig[0];
+    } else {
+      // Identificar id asignado por el id en mpLobbyPlayers que coincide
+      myPConfig = playersConfig.find((p) => p.id === mpLobbyPlayers[mpLobbyPlayers.length - 1]?.id) || playersConfig[1];
+    }
+  }
+
+  startGame(mapPreset, playersConfig, myPConfig);
+}
+
+function startGame(mapPreset, playersConfig, localHumanOverride = null) {
   gameActive = true;
   isPaused = false;
   U.length = 0;
   clearBullets();
   resetSquadCounter();
 
-  humanPlayer = spSettings.playersConfig.find((p) => p.isHuman) || spSettings.playersConfig[0];
-
-  // Si el jugador humano está en equipo Espectador, se marca isSpectator = true
-  if (humanPlayer.team === 'SPECTATOR') {
-    humanPlayer.isSpectator = true;
-  }
-
-  // Filtrar combatientes activos excluyendo jugadores en modo Espectador
-  const activeCombatants = spSettings.playersConfig.filter((p) => p.team !== 'SPECTATOR' && !p.isSpectator);
-
-  // Calcular escala de mapa y posiciones de HQ según los combatientes activos únicamente
+  const activeCombatants = playersConfig.filter((p) => p.team !== 'SPECTATOR' && !p.isSpectator);
   const totalActiveArmies = activeCombatants.length;
   const mapScale = totalActiveArmies >= 5 ? 2.0 : totalActiveArmies >= 3 ? 1.5 : 1.0;
   const cols = Math.round(CONFIG.GRID.COLUMNS * mapScale);
@@ -247,7 +548,7 @@ function startGame() {
   const hqPositions = CONFIG.getHQPositions(cols, rows);
 
   let activeIdx = 0;
-  gamePlayers = spSettings.playersConfig.map((p) => {
+  gamePlayers = playersConfig.map((p) => {
     const isSpectator = p.team === 'SPECTATOR';
     const pos = !isSpectator && hqPositions[activeIdx] ? hqPositions[activeIdx++] : null;
     return {
@@ -271,11 +572,14 @@ function startGame() {
     };
   });
 
-  humanPlayer = gamePlayers.find((p) => p.isHuman) || gamePlayers[0];
+  humanPlayer = localHumanOverride
+    ? gamePlayers.find((p) => p.id === localHumanOverride.id)
+    : gamePlayers.find((p) => p.isHuman) || gamePlayers[0];
 
-  initMap(spSettings.mapPreset, gamePlayers);
+  myPlayerIdInGame = humanPlayer.id;
 
-  // Inicializar tropas solo para jugadores combatientes activos
+  initMap(mapPreset, gamePlayers);
+
   const roles = ['leader', 'machinegunner', 'grenadier', 'rifleman', 'rifleman'];
   gamePlayers.forEach((p) => {
     if (p.team === 'SPECTATOR' || !p.hq) return;
@@ -295,7 +599,6 @@ function startGame() {
 
   initCardsUI(humanPlayer);
 
-  // Centrar cámara en el HQ del jugador principal o en el centro si es espectador
   if (humanPlayer && humanPlayer.hq) {
     camera.x = humanPlayer.hq.x * CONFIG.GRID.CELL_SIZE - cv.width / (2 * camera.zoom);
     camera.y = humanPlayer.hq.y * CONFIG.GRID.CELL_SIZE - cv.height / (2 * camera.zoom);
@@ -309,6 +612,64 @@ function startGame() {
   lastTime = performance.now();
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
   animationFrameId = requestAnimationFrame(step);
+}
+
+function applyFullStateSync(data) {
+  if (!data) return;
+
+  if (data.v && data.v.length === v.length) {
+    for (let i = 0; i < v.length; i++) {
+      v[i] = data.v[i];
+    }
+  }
+
+  if (data.players) {
+    data.players.forEach((sp) => {
+      const p = gamePlayers.find((gp) => gp.id === sp.id);
+      if (p) {
+        p.res = sp.res;
+        p.cds = sp.cds;
+        if (p.hq && sp.hq) {
+          p.hq.hp = sp.hq.hp;
+          p.hq.alive = sp.hq.alive;
+        }
+      }
+    });
+  }
+
+  // Preservar la selección local 'u.s' de las unidades al actualizar sus atributos desde el Host
+  if (data.units) {
+    const prevSelections = new Map();
+    U.forEach((u, idx) => {
+      if (u.s) prevSelections.set(idx, true);
+    });
+
+    if (data.units.length === U.length) {
+      // Actualización directa in-place para no perder referencias
+      data.units.forEach((su, i) => {
+        const u = U[i];
+        u.x = su.x;
+        u.y = su.y;
+        u.tx = su.tx;
+        u.ty = su.ty;
+        u.hp = su.hp;
+        u.mh = su.mh;
+        u.tr = su.tr;
+        u.path = su.path || [];
+        u.seen = su.seen;
+      });
+    } else {
+      // Reconstrucción solo cuando cambia el conteo de unidades (al morir o aparecer)
+      U.length = 0;
+      data.units.forEach((su, i) => {
+        U.push({
+          ...su,
+          s: prevSelections.has(i) && (su.playerId === myPlayerIdInGame || su.t === myPlayerIdInGame),
+          path: su.path || [],
+        });
+      });
+    }
+  }
 }
 
 function checkVictoryDefeat() {
@@ -329,7 +690,6 @@ function checkVictoryDefeat() {
     }
   }
 
-  // Si se está en Modo Espectador
   if (humanPlayer.team === 'SPECTATOR' || humanPlayer.isSpectator) {
     for (const [team, count] of teamTerritory.entries()) {
       if (team !== 'SPECTATOR' && count / totalCells >= 0.65) {
@@ -349,18 +709,15 @@ function checkVictoryDefeat() {
   const humanTeam = humanPlayer.team;
   const humanTeamPct = (teamTerritory.get(humanTeam) || 0) / totalCells;
 
-  // Comprobar HQs enemigas vivas
   const enemyPlayers = gamePlayers.filter((p) => p.team !== humanTeam);
   const aliveEnemyHQs = enemyPlayers.filter((p) => p.hq && p.hq.alive);
   const aliveEnemyUnits = U.filter((u) => enemyPlayers.some((p) => p.id === (u.playerId || u.t)));
 
-  // Victoria: control >= 65% territorio O destrucción de todas las HQs enemigas y tropas enemigas
   if (humanTeamPct >= 0.65 || (aliveEnemyHQs.length === 0 && aliveEnemyUnits.length === 0)) {
     endGame(true, humanTeamPct >= 0.65 ? '¡Tu equipo domina más del 65% del territorio!' : '¡Has destruido a todas las fuerzas enemigas!');
     return;
   }
 
-  // Comprobar si otra facción domina >= 65%
   for (const [team, count] of teamTerritory.entries()) {
     if (team !== humanTeam && count / totalCells >= 0.65) {
       endGame(false, `El equipo ${team} ha conquistado más del 65% del territorio.`);
@@ -368,7 +725,6 @@ function checkVictoryDefeat() {
     }
   }
 
-  // Derrota: HQ propio destruido y sin unidades vivas
   const humanUnits = U.filter((u) => u.playerId === humanPlayer.id || u.t === humanPlayer.id);
   if ((!humanPlayer.hq || !humanPlayer.hq.alive) && humanUnits.length === 0) {
     endGame(false, 'Tu base principal ha sido destruida y tus tropas han caído.');
@@ -413,8 +769,7 @@ function step(now) {
         p.cds[i] = Math.max(0, p.cds[i] - dt);
       }
 
-      // IA Turnos
-      if (!p.isHuman) {
+      if (!p.isHuman && (!isMultiplayer || isHost)) {
         p.aiTm -= dt;
         if (p.aiTm <= 0) {
           p.aiTm = CONFIG.AI.PLAY_CHECK_INTERVAL_MIN + Math.random() * CONFIG.AI.PLAY_CHECK_INTERVAL_RANGE;
@@ -489,7 +844,6 @@ function step(now) {
         }
       }
 
-      // Los drones no capturan territorio
       if (!u.isDrone) {
         const uPid = u.playerId || u.t;
         const r = CONFIG.GAME.TERRITORY_PUSH_RADIUS;
@@ -505,9 +859,44 @@ function step(now) {
 
     updateCombat(dt, gamePlayers);
 
-    // Eliminar unidades sin vida
     for (let i = U.length - 1; i >= 0; i--) {
       if (U[i].hp <= 0) U.splice(i, 1);
+    }
+
+    if (isMultiplayer && isHost) {
+      netSyncTimer += dt;
+      if (netSyncTimer >= 0.2) {
+        netSyncTimer = 0;
+        sendNetMessage({
+          type: ACTION_TYPES.SYNC_FULL_STATE,
+          data: {
+            v: Array.from(v),
+            players: gamePlayers.map((p) => ({
+              id: p.id,
+              res: p.res,
+              cds: p.cds,
+              hq: p.hq ? { hp: p.hq.hp, alive: p.hq.alive } : null,
+            })),
+            units: U.map((u) => ({
+              playerId: u.playerId,
+              t: u.t,
+              x: u.x,
+              y: u.y,
+              tx: u.tx,
+              ty: u.ty,
+              hp: u.hp,
+              mh: u.mh,
+              sp: u.sp,
+              isDrone: u.isDrone,
+              squadId: u.squadId,
+              role: u.role,
+              tr: u.tr,
+              path: u.path,
+              seen: u.seen,
+            })),
+          },
+        });
+      }
     }
 
     checkVictoryDefeat();

@@ -61,8 +61,49 @@ p{color:var(--mut);margin:6px 0 0;font-size:12px}
   <h1 class="menu-title">FRENTE</h1>
   <div class="menu-subtitle">Estrategia en Tiempo Real</div>
   <button id="btn-singleplayer" class="menu-btn primary">Un Jugador</button>
-  <button class="menu-btn" disabled>Multijugador (Próximamente)</button>
+  <button id="btn-multiplayer" class="menu-btn">Multijugador (P2P)</button>
   <button class="menu-btn" disabled>Ajustes (Próximamente)</button>
+</div>
+
+<!-- MENÚ MULTIJUGADOR (SELECCIÓN) -->
+<div id="screen-mp-select" class="screen">
+  <h2 class="menu-title" style="font-size:22px">Multijugador</h2>
+  <button id="btn-mp-create-room" class="menu-btn primary">Crear Sala (Anfitrión)</button>
+  <div style="display:flex;gap:8px;align-items:center">
+    <input id="mp-room-code-input" class="setting-input" type="text" placeholder="Código de Sala (ej. ABCD)" style="text-transform:uppercase;font-size:16px;text-align:center;letter-spacing:2px">
+    <button id="btn-mp-join-room" class="menu-btn" style="width:auto;padding:10px 16px">Unirse</button>
+  </div>
+  <p id="mp-status-msg" style="text-align:center;color:var(--bl);font-weight:600;min-height:20px"></p>
+  <button id="btn-mp-select-back" class="menu-btn">Volver al Menú</button>
+</div>
+
+<!-- LOBBY MULTIJUGADOR -->
+<div id="screen-mp-lobby" class="screen">
+  <h2 class="menu-title" style="font-size:22px">Sala Multijugador</h2>
+  <div class="setting-group" style="text-align:center">
+    <div style="font-size:12px;color:var(--mut)">CÓDIGO DE SALA:</div>
+    <div id="mp-lobby-code" style="font-size:28px;font-weight:800;letter-spacing:4px;color:var(--bl)">----</div>
+    <div style="font-size:11px;color:var(--mut)">Comparte este código con los demás jugadores</div>
+  </div>
+
+  <div id="mp-host-settings" class="setting-group">
+    <div class="setting-label"><span>Tipo de Mapa</span></div>
+    <select id="mp-map" class="setting-select">
+      <option value="default">Predeterminado (Equilibrado)</option>
+      <option value="forest">Bosque (Mucha vegetación)</option>
+      <option value="trench">Red de Trincheras</option>
+    </select>
+  </div>
+
+  <div class="setting-group">
+    <div class="setting-label"><span>Jugadores Conectados</span></div>
+    <div id="mp-players-list" class="players-list"></div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button id="btn-mp-lobby-back" class="menu-btn" style="flex:1">Salir</button>
+    <button id="btn-mp-start" class="menu-btn primary" style="flex:2">Iniciar Partida</button>
+  </div>
 </div>
 
 <!-- MENÚ UN JUGADOR -->
@@ -135,6 +176,7 @@ p{color:var(--mut);margin:6px 0 0;font-size:12px}
 </div>
 
 </main>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="module" src="src/main.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
