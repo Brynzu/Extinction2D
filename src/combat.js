@@ -73,17 +73,20 @@ export function vis(dt) {
   }
 }
 
-export function triggerExplosion(x, y) {
+export function triggerExplosion(x, y, radiusMult = 1.0) {
   sounds.playExplosion();
   explosions.push({ x, y, l: 0.4, maxL: 0.4 });
 
-  // Daño directo a unidad en casilla e impacto a 1 casilla alrededor
+  const directRadius = 0.6 * radiusMult;
+  const splashRadius = 1.1 * radiusMult;
+
+  // Daño directo e impacto de área reducido
   for (const victim of U) {
     const dist = Math.hypot(victim.x - x, victim.y - y);
-    if (dist <= 0.8) {
-      victim.hp = 0; // Matar unidad directa
-    } else if (dist <= 1.8) {
-      victim.hp -= 2.5; // Dañar gravemente adyacentes
+    if (dist <= directRadius) {
+      victim.hp = 0; // Matar unidad en impacto directo
+    } else if (dist <= splashRadius) {
+      victim.hp -= 1.5; // Dañar moderadamente adyacentes
     }
   }
 }
@@ -224,17 +227,28 @@ export function updateCombat(dt) {
     // Disminuir tiempo de recarga de granada
     if (u.grenadeCd > 0) u.grenadeCd -= dt;
 
-    // Lógica especial de lanzamiento de granada para el rol Granadero
+    // Lógica especial de lanzamiento de granada para el rol Granadero (cooldown 15s, rango de impacto 1.1)
     if (u.role === 'grenadier' && tg && bd <= 7.0 && u.grenadeCd <= 0 && u.rd <= 0) {
-      u.grenadeCd = 8.0; // Cooldown de 8 segundos por granada
-      triggerExplosion(tg.x, tg.y);
+      u.grenadeCd = 15.0; // Cooldown aumentado a 15 segundos
+      triggerExplosion(tg.x, tg.y, 1.0); // Rango de explosión de granada ajustado a 1.1 casillas
       u.rev = CONFIG.COMBAT.SHOT_REVEAL_TIME;
     }
 
     if (tg && bd > 0 && u.cd <= 0 && u.rd <= 0) {
       const isLmg = u.role === 'machinegunner';
-      const dispersionMult = isLmg ? 1.2 : 1.0;
-      const attackCooldown = isLmg ? 0.35 : CONFIG.COMBAT.ATTACK_COOLDOWN; // Ametralladora ligera: alta cadencia
+      let attackCooldown = CONFIG.COMBAT.ATTACK_COOLDOWN;
+
+      if (isLmg) {
+        u.burstShots = (u.burstShots || 0) + 1;
+        if (u.burstShots < 5) {
+          attackCooldown = 0.08; // Disparo súper rápido dentro de la ráfaga (5 disparos)
+        } else {
+          u.burstShots = 0;
+          attackCooldown = 1.4; // Pausa/Recarga entre ráfagas
+        }
+      }
+
+      const dispersionMult = isLmg ? 1.35 : 1.0;
 
       const an =
         Math.atan2(tg.y - u.y, tg.x - u.x) +

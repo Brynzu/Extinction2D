@@ -113,7 +113,7 @@ export function initInput(P) {
       return;
     }
 
-    // Si NO hay unidades seleccionadas aún, tocar una unidad propia la selecciona a ella o a toda su escuadra
+    // Si NO hay unidades seleccionadas aún, tocar una unidad propia selecciona a TODA su escuadra (o al dron si es individual)
     if (selectedUnits.length === 0) {
       const ownHit = U.filter((u) => u.t > 0 && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
         (p, q) => Math.hypot(p.x - worldX, p.y - worldY) - Math.hypot(q.x - worldX, q.y - worldY)
@@ -123,6 +123,10 @@ export function initInput(P) {
         if (dbl) {
           U.forEach((u) => {
             if (u.t > 0) u.s = true;
+          });
+        } else if (ownHit.squadId > 0) {
+          U.forEach((u) => {
+            if (u.t > 0 && u.squadId === ownHit.squadId) u.s = true;
           });
         } else {
           ownHit.s = true;
