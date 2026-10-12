@@ -54,8 +54,8 @@ export function deploy(t, cardIndex) {
   const hqPos = t > 0 ? CONFIG.HQ.BLUE_HQ : CONFIG.HQ.RED_HQ;
 
   const squadId = c.isDrone ? 0 : nextSquadId++;
-  // Roles para escuadrón de asalto de 4 miembros: 1 machinegunner, 1 grenadier, 2 riflemen
-  const roles = c.isDrone ? ['drone'] : ['leader', 'machinegunner', 'grenadier', 'rifleman'];
+  // Roles para escuadrón de asalto de 5 miembros: 1 líder, 1 machinegunner, 1 grenadier, 2 riflemen
+  const roles = c.isDrone ? ['drone'] : ['leader', 'machinegunner', 'grenadier', 'rifleman', 'rifleman'];
 
   for (let k = 0; k < c.k; k++) {
     const startX = cl(spawnPos.x + ((k % 2) - 0.5) * 1.2, 0.5, C - 0.5);
