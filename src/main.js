@@ -111,7 +111,8 @@ function step(now) {
 
     if (d > 0.08) {
       const speed = u.t > 0 ? CONFIG.UNITS.SPEED_BLUE : CONFIG.UNITS.SPEED_RED;
-      const m = Math.min(d, speed * u.sp * (u.cb ? CONFIG.UNITS.COMBAT_SPEED_MULT : 1) * dt);
+      const trenchMult = u.tr ? CONFIG.UNITS.TRENCH_SPEED_MULT : 1.0;
+      const m = Math.min(d, speed * u.sp * trenchMult * (u.cb ? CONFIG.UNITS.COMBAT_SPEED_MULT : 1) * dt);
       const px = u.x + (dx / d) * m;
       const py = u.y + (dy / d) * m;
       const ok = (a, b) =>

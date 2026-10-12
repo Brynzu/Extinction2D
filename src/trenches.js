@@ -165,7 +165,12 @@ export function postTick(U) {
     const py = w.post[1];
     if (U.filter((u) => u.t === w.t && u.hold && u.hold[0] === px && u.hold[1] === py).length >= 2) continue;
     const cand = U.filter((u) => u.t === w.t && u.tr && u.post && u.post[0] === px && u.post[1] === py)
-      .sort((a, b) => Math.hypot(a.x - px - 0.5, a.y - py - 0.5) - Math.hypot(b.x - px - 0.5, b.y - py - 0.5))[0];
+      .sort((a, b) => {
+        const aIsLeader = a.squadId > 0 && a.role === 'leader';
+        const bIsLeader = b.squadId > 0 && b.role === 'leader';
+        if (aIsLeader !== bIsLeader) return aIsLeader ? 1 : -1;
+        return Math.hypot(a.x - px - 0.5, a.y - py - 0.5) - Math.hypot(b.x - px - 0.5, b.y - py - 0.5);
+      })[0];
     if (!cand) continue;
     const p = bfs(Math.floor(cand.x), Math.floor(cand.y), (a, b) => a === px && b === py);
     if (p) {
@@ -179,6 +184,22 @@ export function postTick(U) {
 
 export function orderTrench(us, cx, cy) {
   us = us.slice().sort((p, r) => Math.hypot(p.x - cx - 0.5, p.y - cy - 0.5) - Math.hypot(r.x - cx - 0.5, r.y - cy - 0.5));
+
+  // Táctica de escuadrón si el Líder de equipo está vivo
+  const squadId = us.length ? us[0].squadId : 0;
+  const hasLeader = squadId > 0 && us.some((w) => w.squadId === squadId && w.role === 'leader' && w.hp > 0);
+
+  if (hasLeader) {
+    const rolePriority = (u) => {
+      if (u.role === 'rifleman') return 1;
+      if (u.role === 'grenadier') return 2;
+      if (u.role === 'machinegunner') return 3;
+      if (u.role === 'leader') return 4;
+      return 5;
+    };
+    us.sort((a, b) => rolePriority(a) - rolePriority(b));
+  }
+
   const q = dmap(cx, cy).q;
   const isS = T[cy * C + cx] === 3;
   const qd = q.filter((k) => T[k] === 4);
