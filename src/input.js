@@ -113,30 +113,28 @@ export function initInput(P) {
       return;
     }
 
-    // Si NO hay unidades seleccionadas aún, tocar una unidad propia selecciona a TODA su escuadra (o al dron si es individual)
-    if (selectedUnits.length === 0) {
-      const ownHit = U.filter((u) => u.t > 0 && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
-        (p, q) => Math.hypot(p.x - worldX, p.y - worldY) - Math.hypot(q.x - worldX, q.y - worldY)
-      )[0];
+    // Tocar una unidad propia selecciona a TODA su escuadra (o al dron si es individual)
+    const ownHit = U.filter((u) => u.t > 0 && Math.hypot(u.x - worldX, u.y - worldY) < 1.2).sort(
+      (p, q) => Math.hypot(p.x - worldX, p.y - worldY) - Math.hypot(q.x - worldX, q.y - worldY)
+    )[0];
 
-      if (ownHit) {
-        if (dbl) {
-          U.forEach((u) => {
-            if (u.t > 0) u.s = true;
-          });
-        } else if (ownHit.squadId > 0) {
-          U.forEach((u) => {
-            if (u.t > 0 && u.squadId === ownHit.squadId) u.s = true;
-          });
-        } else {
-          ownHit.s = true;
-        }
-        sounds.playSelect();
-        return;
+    if (ownHit) {
+      if (dbl) {
+        U.forEach((u) => {
+          if (u.t > 0) u.s = true;
+        });
+      } else {
+        U.forEach((u) => {
+          if (u.t > 0) {
+            u.s = ownHit.squadId > 0 ? u.squadId === ownHit.squadId : u === ownHit;
+          }
+        });
       }
+      sounds.playSelect();
+      return;
     }
 
-    // Si ya hay unidades seleccionadas y tocamos en el mapa (o en otra unidad), priorizar el movimiento
+    // Si tocamos en el mapa, mover las unidades seleccionadas
     const cx = Math.floor(worldX);
     const cy = Math.floor(worldY);
 
