@@ -117,12 +117,15 @@ export function aiPlay(p, players) {
     p.droneSwarmGoal = Math.floor(3 + Math.random() * 5);
   }
 
-  // Despliegue de cartas (flexible y continuo mientras tenga recursos suficientes)
-  let currentUnitsCount = myUnits.length;
-  while (currentUnitsCount < CONFIG.GAME.MAX_UNITS_PER_SIDE) {
+  // Despliegue de cartas (prioridad a infantería para mantener presencia terrestre, limitando drones)
+  let activeUnits = U.filter((u) => u.playerId === p.id || u.t === p.id);
+  let groundCount = activeUnits.filter((u) => !u.isDrone).length;
+  let droneCount = activeUnits.filter((u) => u.isDrone).length;
+
+  while (activeUnits.length < CONFIG.GAME.MAX_UNITS_PER_SIDE) {
     const availableIndices = [];
     for (let i = 0; i < 4; i++) {
-      if (p.cds[i] <= 0 && p.res >= CARDS[i].c && currentUnitsCount + CARDS[i].k <= CONFIG.GAME.MAX_UNITS_PER_SIDE) {
+      if (p.cds[i] <= 0 && p.res >= CARDS[i].c && activeUnits.length + CARDS[i].k <= CONFIG.GAME.MAX_UNITS_PER_SIDE) {
         availableIndices.push(i);
       }
     }
@@ -132,25 +135,29 @@ export function aiPlay(p, players) {
     const droneCardIndex = availableIndices.find((idx) => CARDS[idx].isDrone);
     const squadIndices = availableIndices.filter((idx) => !CARDS[idx].isDrone);
 
+    // Solo desplegar dron si la fuerza terrestre es sólida (al menos 12 soldados) y los drones son menos del 20% de la fuerza terrestre
+    const maxAllowedDrones = Math.max(2, Math.floor(groundCount / 5));
     let deployDrone = false;
-    if (droneCardIndex !== undefined && myGroundUnits.length >= 6 && myDrones.length < p.droneSwarmGoal) {
-      deployDrone = Math.random() < 0.65;
+    if (droneCardIndex !== undefined && groundCount >= 12 && droneCount < maxAllowedDrones) {
+      deployDrone = Math.random() < 0.50;
     }
 
     if (deployDrone && droneCardIndex !== undefined) {
       p.res -= CARDS[droneCardIndex].c;
       p.cds[droneCardIndex] = 2.5;
       deploy(p, droneCardIndex);
-      currentUnitsCount += CARDS[droneCardIndex].k;
+      droneCount++;
     } else if (squadIndices.length > 0) {
       const chosenIndex = squadIndices[Math.floor(Math.random() * squadIndices.length)];
       p.res -= CARDS[chosenIndex].c;
       p.cds[chosenIndex] = CARDS[chosenIndex].cd;
       deploy(p, chosenIndex);
-      currentUnitsCount += CARDS[chosenIndex].k;
+      groundCount += CARDS[chosenIndex].k;
     } else {
       break;
     }
+
+    activeUnits = U.filter((u) => u.playerId === p.id || u.t === p.id);
   }
 
   updateAIDrones(p, players);

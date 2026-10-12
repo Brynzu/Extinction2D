@@ -181,15 +181,14 @@ export function draw(humanPlayer, players = [], box = null) {
     }
   });
 
-  // 6. Renderizar Unidades
-
+  // 5. Renderizar Tropas Terrestres (Infantería) - debajo de las copas de los árboles
   for (const u of U) {
+    if (u.isDrone) continue;
     const uPid = u.playerId || u.t;
     const p = playerMap.get(uPid) || { colorKey: 'blue', team: 'A' };
     const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
     const isEnemy = humanPlayer && p.team !== humanPlayer.team;
 
-    // Fog of war check: enemy units are hidden unless seen by team or in Spectator mode
     if (isEnemy && !isSpectator && !canSee(u.x, u.y, humanPlayer, players)) {
       continue;
     }
@@ -203,38 +202,22 @@ export function draw(humanPlayer, players = [], box = null) {
       g.setLineDash([]);
     }
 
-    if (u.isDrone) {
-      g.save();
-      g.translate(u.x * S, u.y * S);
-      g.fillStyle = col.light;
-      g.strokeStyle = u.s ? '#fff' : col.dark;
-      g.lineWidth = u.s ? 2.5 : 1.5;
-      g.beginPath();
-      g.moveTo(0, -8);
-      g.lineTo(7, 7);
-      g.lineTo(-7, 7);
-      g.closePath();
-      g.fill();
-      g.stroke();
-      g.restore();
-    } else {
-      const drawRadius = S * CONFIG.UNITS.DRAW_RADIUS;
-      g.fillStyle = col.light;
-      g.strokeStyle = u.s ? '#fff' : col.dark;
-      g.lineWidth = u.s ? 3 : 2;
-      g.globalAlpha = deep(u) ? 0.6 : 1;
-      g.beginPath();
-      g.arc(u.x * S, u.y * S, drawRadius, 0, 7);
-      g.fill();
-      g.stroke();
-      g.globalAlpha = 1;
+    const drawRadius = S * CONFIG.UNITS.DRAW_RADIUS;
+    g.fillStyle = col.light;
+    g.strokeStyle = u.s ? '#fff' : col.dark;
+    g.lineWidth = u.s ? 3 : 2;
+    g.globalAlpha = deep(u) ? 0.6 : 1;
+    g.beginPath();
+    g.arc(u.x * S, u.y * S, drawRadius, 0, 7);
+    g.fill();
+    g.stroke();
+    g.globalAlpha = 1;
 
-      // Barra de vida de la unidad
-      g.fillStyle = 'rgba(0,0,0,.6)';
-      g.fillRect(u.x * S - 6, u.y * S + 7, 12, 3);
-      g.fillStyle = col.main;
-      g.fillRect(u.x * S - 6, u.y * S + 7, (12 * u.hp) / u.mh, 3);
-    }
+    // Barra de vida
+    g.fillStyle = 'rgba(0,0,0,.6)';
+    g.fillRect(u.x * S - 6, u.y * S + 7, 12, 3);
+    g.fillStyle = col.main;
+    g.fillRect(u.x * S - 6, u.y * S + 7, (12 * u.hp) / u.mh, 3);
   }
 
   // Renderizar Explosiones
@@ -263,7 +246,7 @@ export function draw(humanPlayer, players = [], box = null) {
     g.stroke();
   }
 
-  // Renderizar Copas de Árboles (por encima de unidades y balas)
+  // 6. Renderizar Copas de Árboles (por encima de tropas terrestres y balas, pero debajo de drones)
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
       if (T[y * C + x] === 1) {
@@ -279,6 +262,42 @@ export function draw(humanPlayer, players = [], box = null) {
         g.globalAlpha = 1;
       }
     }
+  }
+
+  // 7. Renderizar Unidades Aéreas (Drones) - por encima de las copas de los árboles
+  for (const u of U) {
+    if (!u.isDrone) continue;
+    const uPid = u.playerId || u.t;
+    const p = playerMap.get(uPid) || { colorKey: 'blue', team: 'A' };
+    const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
+    const isEnemy = humanPlayer && p.team !== humanPlayer.team;
+
+    if (isEnemy && !isSpectator && !canSee(u.x, u.y, humanPlayer, players)) {
+      continue;
+    }
+
+    if (u.s) {
+      g.strokeStyle = '#fff';
+      g.setLineDash([3, 3]);
+      g.beginPath();
+      g.arc(u.tx * S, u.ty * S, 5, 0, 7);
+      g.stroke();
+      g.setLineDash([]);
+    }
+
+    g.save();
+    g.translate(u.x * S, u.y * S);
+    g.fillStyle = col.light;
+    g.strokeStyle = u.s ? '#fff' : col.dark;
+    g.lineWidth = u.s ? 2.5 : 1.5;
+    g.beginPath();
+    g.moveTo(0, -8);
+    g.lineTo(7, 7);
+    g.lineTo(-7, 7);
+    g.closePath();
+    g.fill();
+    g.stroke();
+    g.restore();
   }
 
   // Recuadro de Selección

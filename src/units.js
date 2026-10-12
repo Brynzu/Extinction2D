@@ -27,7 +27,7 @@ export function addUnit(playerId, x, y, targetX = x, targetY = y, isDrone = fals
     mh: CONFIG.UNITS.DEFAULT_HP,
     sp: isDrone ? 4.5 : 1,
     isDrone,
-    evasion: isDrone ? 60 : 0,
+    evasion: isDrone ? 75 : 0,
     squadId,
     role, // 'leader' | 'machinegunner' | 'grenadier' | 'rifleman'
     grenadeCd: 0,
