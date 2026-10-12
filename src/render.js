@@ -95,7 +95,7 @@ export function draw(humanPlayer, players = [], box = null) {
 
   const isSpectator = humanPlayer && (humanPlayer.team === 'SPECTATOR' || humanPlayer.isSpectator);
 
-  // Renderizar Territorio (color de conquista según el EQUIPO)
+  // 1. Renderizar Territorio Conquistado
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
       const pId = Math.round(v[y * C + x]);
@@ -104,19 +104,18 @@ export function draw(humanPlayer, players = [], box = null) {
         territoryCounts.set(pId, (territoryCounts.get(pId) || 0) + 1);
         teamTerritoryCounts.set(p.team, (teamTerritoryCounts.get(p.team) || 0) + 1);
 
-        const isEnemyTerritory = humanPlayer && p.team !== humanPlayer.team;
-        if (isEnemyTerritory && !isSpectator && !canSee(x + 0.5, y + 0.5, humanPlayer, players)) {
-          continue;
+        // El color de conquista del terreno SOLO se pinta en Modo Espectador o dentro de la línea de visión
+        const inVision = canSee(x + 0.5, y + 0.5, humanPlayer, players);
+        if (isSpectator || inVision) {
+          const teamCol = CONFIG.TEAM_COLORS[p.team] || CONFIG.COLORS.blue;
+          g.fillStyle = teamCol.main + '40'; // 25% opacidad
+          g.fillRect(x * S, y * S, S, S);
         }
-
-        const teamCol = CONFIG.TEAM_COLORS[p.team] || CONFIG.COLORS.blue;
-        g.fillStyle = teamCol.main + '40'; // Color de conquista del equipo
-        g.fillRect(x * S, y * S, S, S);
       }
     }
   }
 
-  // Trincheras
+  // 2. Trincheras
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
       const k = T[y * C + x];
@@ -127,7 +126,41 @@ export function draw(humanPlayer, players = [], box = null) {
     }
   }
 
-  // Renderizar HQs
+  // 3. Renderizar Árboles
+  for (let y = 0; y < R; y++) {
+    for (let x = 0; x < C; x++) {
+      if (T[y * C + x] === 1) {
+        g.fillStyle = '#5a4631';
+        g.beginPath();
+        g.arc((x + 0.5) * S, (y + 0.5) * S, S * 0.12, 0, 7);
+        g.fill();
+        g.globalAlpha = 0.88;
+        g.fillStyle = '#2f5a2c';
+        g.beginPath();
+        g.arc((x + 0.5) * S, (y + 0.5) * S, S * 0.42, 0, 7);
+        g.fill();
+        g.fillStyle = '#4a8a44';
+        g.beginPath();
+        g.arc((x + 0.4) * S, (y + 0.4) * S, S * 0.2, 0, 7);
+        g.fill();
+        g.globalAlpha = 1;
+      }
+    }
+  }
+
+  // 4. Renderizar Capa de Niebla de Guerra Clásica (Fog of War) sobre áreas fuera de línea de visión
+  if (!isSpectator) {
+    g.fillStyle = 'rgba(12, 15, 18, 0.62)';
+    for (let y = 0; y < R; y++) {
+      for (let x = 0; x < C; x++) {
+        if (!canSee(x + 0.5, y + 0.5, humanPlayer, players)) {
+          g.fillRect(x * S, y * S, S, S);
+        }
+      }
+    }
+  }
+
+  // 5. Renderizar HQs
   players.forEach((p) => {
     if (!p.hq) return;
     const isEnemyHQ = humanPlayer && p.team !== humanPlayer.team;
@@ -170,7 +203,7 @@ export function draw(humanPlayer, players = [], box = null) {
     }
   });
 
-  // Renderizar Unidades
+  // 6. Renderizar Unidades
 
   for (const u of U) {
     const uPid = u.playerId || u.t;
@@ -249,28 +282,6 @@ export function draw(humanPlayer, players = [], box = null) {
     g.moveTo((bullet.x - bullet.vx * 0.03) * S, (bullet.y - bullet.vy * 0.03) * S);
     g.lineTo(bullet.x * S, bullet.y * S);
     g.stroke();
-  }
-
-  // Renderizar Árboles
-  for (let y = 0; y < R; y++) {
-    for (let x = 0; x < C; x++) {
-      if (T[y * C + x] === 1) {
-        g.fillStyle = '#5a4631';
-        g.beginPath();
-        g.arc((x + 0.5) * S, (y + 0.5) * S, S * 0.12, 0, 7);
-        g.fill();
-        g.globalAlpha = 0.88;
-        g.fillStyle = '#2f5a2c';
-        g.beginPath();
-        g.arc((x + 0.5) * S, (y + 0.5) * S, S * 0.42, 0, 7);
-        g.fill();
-        g.fillStyle = '#4a8a44';
-        g.beginPath();
-        g.arc((x + 0.4) * S, (y + 0.4) * S, S * 0.2, 0, 7);
-        g.fill();
-        g.globalAlpha = 1;
-      }
-    }
   }
 
   // Recuadro de Selección
