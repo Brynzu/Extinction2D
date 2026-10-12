@@ -11,6 +11,23 @@ export function clearBullets() {
   explosions.length = 0;
 }
 
+export function syncBulletsAndExplosions(newBullets = [], newExplosions = []) {
+  if (Array.isArray(newBullets)) {
+    newBullets.forEach((nb) => {
+      if (!B.some((b) => Math.hypot(b.x - nb.x, b.y - nb.y) < 1.0 && b.playerId === nb.playerId)) {
+        B.push({ ...nb });
+      }
+    });
+  }
+  if (Array.isArray(newExplosions)) {
+    newExplosions.forEach((nex) => {
+      if (!explosions.some((ex) => Math.hypot(ex.x - nex.x, ex.y - nex.y) < 0.5)) {
+        explosions.push({ ...nex });
+      }
+    });
+  }
+}
+
 export function filterBullets() {
   B = B.filter((b) => b.l > 0 && !b.dead);
   return B;

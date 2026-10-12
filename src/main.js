@@ -1,6 +1,6 @@
 import { ACTION_TYPES, executeGameAction, processActionLocally } from './actions.js';
 import { aiPlay, aiTrench } from './ai.js';
-import { clearBullets, updateCombat, vis } from './combat.js';
+import { B, clearBullets, explosions, syncBulletsAndExplosions, updateCombat, vis } from './combat.js';
 import { CONFIG } from './config.js';
 import { camera, clampCamera, getBox, initInput } from './input.js';
 import { C, R, T, isT, initMap, v } from './map.js';
@@ -675,6 +675,10 @@ function applyFullStateSync(data) {
       });
     }
   }
+
+  if (data.bullets || data.explosions) {
+    syncBulletsAndExplosions(data.bullets, data.explosions);
+  }
 }
 
 function checkVictoryDefeat() {
@@ -870,7 +874,7 @@ function step(now) {
 
     if (isMultiplayer && isHost) {
       netSyncTimer += dt;
-      if (netSyncTimer >= 0.2) {
+      if (netSyncTimer >= 0.15) {
         netSyncTimer = 0;
         sendNetMessage({
           type: ACTION_TYPES.SYNC_FULL_STATE,
@@ -898,6 +902,21 @@ function step(now) {
               tr: u.tr,
               path: u.path,
               seen: u.seen,
+            })),
+            bullets: B.map((b) => ({
+              x: b.x,
+              y: b.y,
+              vx: b.vx,
+              vy: b.vy,
+              t: b.t,
+              playerId: b.playerId,
+              l: b.l,
+            })),
+            explosions: explosions.map((ex) => ({
+              x: ex.x,
+              y: ex.y,
+              l: ex.l,
+              maxL: ex.maxL,
             })),
           },
         });
