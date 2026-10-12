@@ -241,10 +241,10 @@ export function updateCombat(dt) {
       if (isLmg) {
         u.burstShots = (u.burstShots || 0) + 1;
         if (u.burstShots < 5) {
-          attackCooldown = 0.08; // Disparo súper rápido dentro de la ráfaga (5 disparos)
+          attackCooldown = 0.14; // Dispara 5 balas en 0.7s (0.14s * 5 = 0.70s)
         } else {
           u.burstShots = 0;
-          attackCooldown = 1.4; // Pausa/Recarga entre ráfagas
+          attackCooldown = 1.5; // Pausa de 1.5s entre ráfagas
         }
       }
 
