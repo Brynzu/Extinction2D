@@ -158,10 +158,18 @@ export function draw(humanPlayer, players = [], box = null) {
   });
 
   // Renderizar Unidades
+  const isSpectator = humanPlayer && (humanPlayer.team === 'SPECTATOR' || humanPlayer.isSpectator);
+
   for (const u of U) {
     const uPid = u.playerId || u.t;
-    const p = playerMap.get(uPid) || { colorKey: 'blue' };
+    const p = playerMap.get(uPid) || { colorKey: 'blue', team: 'A' };
     const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
+    const isEnemy = humanPlayer && p.team !== humanPlayer.team;
+
+    // Fog of war check: enemy units are hidden unless seen by team or in Spectator mode
+    if (isEnemy && !isSpectator && !canSee(u.x, u.y, humanPlayer, players)) {
+      continue;
+    }
 
     if (u.s) {
       g.strokeStyle = '#fff';
@@ -271,7 +279,7 @@ export function draw(humanPlayer, players = [], box = null) {
   g.restore();
 
   // Renderizar Minimapa
-  drawMinimap(playerMap);
+  drawMinimap(playerMap, humanPlayer, players);
 
   // Actualizar UI del territorio superior por EQUIPO
   const totalCells = C * R;
@@ -303,7 +311,7 @@ export function draw(humanPlayer, players = [], box = null) {
   prEl.textContent = `Enemigos ${enemyPct}%`;
 }
 
-function drawMinimap(playerMap) {
+function drawMinimap(playerMap, humanPlayer, players) {
   const mw = 140;
   const mh = 90;
   const mx = cv.width - mw - 10;
@@ -317,10 +325,17 @@ function drawMinimap(playerMap) {
 
   const scaleX = mw / (C * S);
   const scaleY = mh / (R * S);
+  const isSpectator = humanPlayer && (humanPlayer.team === 'SPECTATOR' || humanPlayer.isSpectator);
 
   for (const u of U) {
     const uPid = u.playerId || u.t;
-    const p = playerMap.get(uPid) || { colorKey: 'blue' };
+    const p = playerMap.get(uPid) || { colorKey: 'blue', team: 'A' };
+    const isEnemy = humanPlayer && p.team !== humanPlayer.team;
+
+    if (isEnemy && !isSpectator && !canSee(u.x, u.y, humanPlayer, players)) {
+      continue;
+    }
+
     const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
     g.fillStyle = col.main;
     g.fillRect(mx + u.x * S * scaleX - 1, my + u.y * S * scaleY - 1, 3, 3);

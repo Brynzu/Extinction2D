@@ -106,7 +106,31 @@ export function sep() {
     for (let j = i + 1; j < U.length; j++) {
       const a = U[i];
       const b = U[j];
-      if (a.isDrone || b.isDrone) continue; // Drones no se empujan con tropas terrestres
+
+      // Separación de Drones entre sí para evitar que se amontonen en la misma casilla
+      if (a.isDrone && b.isDrone) {
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let d = Math.hypot(dx, dy);
+        const droneSepDist = 0.85;
+        if (d >= droneSepDist) continue;
+        if (d < 0.001) {
+          dx = (Math.random() - 0.5) * 0.1;
+          dy = (Math.random() - 0.5) * 0.1;
+          d = Math.hypot(dx, dy) || 0.1;
+        }
+        const p = ((droneSepDist - d) * 0.3) / d;
+        a.x = cl(a.x - dx * p, 0.5, C - 0.5);
+        a.y = cl(a.y - dy * p, 0.5, R - 0.5);
+        b.x = cl(b.x + dx * p, 0.5, C - 0.5);
+        b.y = cl(b.y + dy * p, 0.5, R - 0.5);
+        continue;
+      }
+
+      // Los drones no interactúan físicamente con tropas terrestres
+      if (a.isDrone || b.isDrone) continue;
+
+      // Separación de tropas terrestres
       let dx = b.x - a.x;
       let dy = b.y - a.y;
       let d = Math.hypot(dx, dy);

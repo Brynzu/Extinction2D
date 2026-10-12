@@ -59,6 +59,7 @@ export function areEnemies(id1, id2, players = []) {
 
 export const canSee = (x, y, humanPlayer, players = []) => {
   if (!humanPlayer) return true;
+  if (humanPlayer.team === 'SPECTATOR' || humanPlayer.isSpectator) return true;
   const humanTeam = humanPlayer.team;
   return U.some((u) => {
     const uPid = u.playerId || u.t;
