@@ -44,11 +44,12 @@ export const CONFIG = {
   // Atributos y movimiento de unidades
   UNITS: {
     DEFAULT_HP: 3,
-    DRAW_RADIUS: 0.27, // Reducido 10% (0.3 * 0.9 = 0.27)
+    DRAW_RADIUS: 0.20, // Reducido para movimientos tácticos en trinchera
     SEPARATION_DIST: 0.55,
     SPEED_BLUE: 2.5,
     SPEED_RED: 1.6,
     COMBAT_SPEED_MULT: 0.35,
+    TRENCH_SPEED_MULT: 0.60, // 40% más lento dentro de trinchera
   },
 
   // Combate y proyectiles
