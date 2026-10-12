@@ -350,12 +350,16 @@ export function draw(humanPlayer, players = [], box = null) {
   if (isSpectator) {
     const teamsList = Array.from(renderedTeams);
     const teamA = teamsList[0] || 'A';
-    const teamBPct = teamTerritoryCounts.get(teamsList[1]) || 0;
     const teamAPct = Math.round(((teamTerritoryCounts.get(teamA) || 0) / totalCells) * 100);
-    const otherPct = Math.round((teamBPct / totalCells) * 100);
+
+    let otherTeamsCount = 0;
+    for (let i = 1; i < teamsList.length; i++) {
+      otherTeamsCount += teamTerritoryCounts.get(teamsList[i]) || 0;
+    }
+    const otherPct = Math.round((otherTeamsCount / totalCells) * 100);
 
     pbEl.textContent = `Eq ${teamA} ${teamAPct}%`;
-    prEl.textContent = `Otros ${100 - teamAPct}%`;
+    prEl.textContent = `Otros ${otherPct}%`;
   } else {
     pbEl.textContent = `Tú (Eq ${humanPlayer ? humanPlayer.team : 'A'}) ${myTeamPct}%`;
     prEl.textContent = `Enemigos ${enemyPct}%`;
