@@ -76,12 +76,12 @@ export const CONFIG = {
 
   // Combate y proyectiles
   COMBAT: {
-    RANGE_DEFAULT: 8.05, // +15% (7 * 1.15 = 8.05)
-    RANGE_FOREST: 3.45,  // +15% (3 * 1.15 = 3.45)
+    RANGE_DEFAULT: 9.1,  // +30% (7 * 1.30 = 9.1)
+    RANGE_FOREST: 3.9,   // +30% (3 * 1.30 = 3.9)
     ATTACK_COOLDOWN: 1,
     REACTION_MAX: 0.5,
     BULLET_SPEED: 26.4, // +20% (22 * 1.20 = 26.4)
-    BULLET_LIFETIME: 0.5,
+    BULLET_LIFETIME: 0.65, // +30% (0.5 * 1.30 = 0.65)
     BULLET_DAMAGE: 1,
     BULLET_HIT_RADIUS: 0.6,
     BULLET_WIDTH: 1.275, // -15% grosor
