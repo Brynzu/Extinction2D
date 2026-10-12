@@ -121,7 +121,19 @@ export function triggerExplosion(x, y, radiusMult = 1.0, players = []) {
   }
 }
 
-export function updateCombat(dt, players = []) {
+export function updateCombat(dt, players = [], isClientOnly = false) {
+  if (isClientOnly) {
+    filterExplosions();
+    for (const ex of explosions) ex.l -= dt;
+
+    for (const b of B) {
+      b.l -= dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+    }
+    filterBullets();
+    return;
+  }
   filterExplosions();
   for (const ex of explosions) {
     ex.l -= dt;

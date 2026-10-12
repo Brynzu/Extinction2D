@@ -50,7 +50,6 @@ function wouldForm2x2(x, y) {
   return false;
 }
 
-// Genera una red de trincheras lineales con ramificaciones estrechas (1 casilla de ancho)
 function generateLinearTrenchNetwork(startX, startY) {
   const cells = [];
   const isHorizontal = Math.random() < 0.5;
@@ -67,7 +66,6 @@ function generateLinearTrenchNetwork(startX, startY) {
       cells.push([cx, cy, i]);
     }
 
-    // Ramificaciones ortogonales
     if (i > 1 && i < mainLength - 2 && Math.random() < 0.45) {
       const branchDirs = isHorizontal ? [[0, 1], [0, -1]] : [[1, 0], [-1, 0]];
       const bDir = branchDirs[Math.floor(Math.random() * branchDirs.length)];
@@ -84,7 +82,6 @@ function generateLinearTrenchNetwork(startX, startY) {
           break;
         }
 
-        // Sub-ramificación ocasional
         if (j === branchLength - 1 && Math.random() < 0.5) {
           const subDirs = isHorizontal ? [[1, 0], [-1, 0]] : [[0, 1], [0, -1]];
           const sDir = subDirs[Math.floor(Math.random() * subDirs.length)];
@@ -104,7 +101,6 @@ function generateLinearTrenchNetwork(startX, startY) {
     cy += mainDir[1];
   }
 
-  // Asignar celdas superficiales (1 / T=3) estrictamente SOLO en los extremos / entradas de la red (1 vecino)
   for (const [x, y] of cells) {
     let neighborCount = 0;
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -119,67 +115,12 @@ function generateLinearTrenchNetwork(startX, startY) {
   }
 }
 
-export function initMap(preset = 'default', players = []) {
-  const activeCombatants = players.filter((p) => p.team !== 'SPECTATOR' && !p.isSpectator);
-  let scale = 1.0;
-  if (activeCombatants.length >= 5) {
-    scale = 2.0; // x2.0 para 5 o 6 ejércitos
-  } else if (activeCombatants.length >= 3) {
-    scale = 1.5; // x1.5 para 3 o 4 ejércitos
-  }
-
-  const newC = Math.round(CONFIG.GRID.COLUMNS * scale);
-  const newR = Math.round(CONFIG.GRID.ROWS * scale);
-  updateMapDimensions(newC, newR);
-
-  T.fill(0);
-  v.fill(0);
-
-  let numForests = Math.round(35 * scale * scale);
-  let numTrenches = Math.round(3 * scale);
-
-  if (preset === 'forest') {
-    numForests = Math.round(75 * scale * scale);
-    numTrenches = Math.round(1 * scale);
-  } else if (preset === 'trench') {
-    numForests = Math.round(10 * scale * scale);
-    numTrenches = Math.round(7 * scale);
-  }
-
-  // Generar bosques distribuidos
-  for (let i = 0; i < numForests; i++) {
-    blob(10 + Math.random() * (C - 20), 6 + Math.random() * (R - 12), 2 + Math.random() * 2);
-  }
-
-  // Generar redes lineales de trincheras
-  for (let i = 0; i < numTrenches; i++) {
-    const clusterX = Math.floor(25 + (i * (C - 50)) / Math.max(1, numTrenches) + Math.random() * 6);
-    const clusterY = Math.floor(15 + Math.random() * (R - 30));
-    generateLinearTrenchNetwork(clusterX, clusterY);
-  }
-
-  // Inicializar territorio por jugador cerca de su HQ
-  players.forEach((p) => {
-    if (!p.hq) return;
-    const hx = Math.floor(p.hq.x);
-    const hy = Math.floor(p.hq.y);
-    const rad = 14;
-    for (let y = Math.max(0, hy - rad); y <= Math.min(R - 1, hy + rad); y++) {
-      for (let x = Math.max(0, hx - rad); x <= Math.min(C - 1, hx + rad); x++) {
-        if (Math.hypot(x - hx, y - hy) <= rad) {
-          v[y * C + x] = p.id;
-        }
-      }
-    }
-  });
-
-  // Celdas de trinchera
+function recomputeTrenchStructures() {
   TRL.length = 0;
   for (let i = 0; i < C * R; i++) {
     if (T[i] >= 3) TRL.push(i);
   }
 
-  // Componentes conexos TC
   TC.fill(-1);
   let nc = 0;
   for (const s0 of TRL) {
@@ -202,4 +143,73 @@ export function initMap(preset = 'default', players = []) {
       nc++;
     }
   }
+}
+
+export function applyMapGrid(customT, cols, rows) {
+  updateMapDimensions(cols, rows);
+  for (let i = 0; i < customT.length; i++) {
+    T[i] = customT[i];
+  }
+  recomputeTrenchStructures();
+}
+
+export function initMap(preset = 'default', players = [], customGridT = null) {
+  const activeCombatants = players.filter((p) => p.team !== 'SPECTATOR' && !p.isSpectator);
+  let scale = 1.0;
+  if (activeCombatants.length >= 5) {
+    scale = 2.0;
+  } else if (activeCombatants.length >= 3) {
+    scale = 1.5;
+  }
+
+  const newC = Math.round(CONFIG.GRID.COLUMNS * scale);
+  const newR = Math.round(CONFIG.GRID.ROWS * scale);
+  updateMapDimensions(newC, newR);
+
+  T.fill(0);
+  v.fill(0);
+
+  if (customGridT && customGridT.length === T.length) {
+    for (let i = 0; i < customGridT.length; i++) {
+      T[i] = customGridT[i];
+    }
+  } else {
+    let numForests = Math.round(35 * scale * scale);
+    let numTrenches = Math.round(3 * scale);
+
+    if (preset === 'forest') {
+      numForests = Math.round(75 * scale * scale);
+      numTrenches = Math.round(1 * scale);
+    } else if (preset === 'trench') {
+      numForests = Math.round(10 * scale * scale);
+      numTrenches = Math.round(7 * scale);
+    }
+
+    for (let i = 0; i < numForests; i++) {
+      blob(10 + Math.random() * (C - 20), 6 + Math.random() * (R - 12), 2 + Math.random() * 2);
+    }
+
+    for (let i = 0; i < numTrenches; i++) {
+      const clusterX = Math.floor(25 + (i * (C - 50)) / Math.max(1, numTrenches) + Math.random() * 6);
+      const clusterY = Math.floor(15 + Math.random() * (R - 30));
+      generateLinearTrenchNetwork(clusterX, clusterY);
+    }
+  }
+
+  // Inicializar territorio por jugador cerca de su HQ
+  players.forEach((p) => {
+    if (!p.hq) return;
+    const hx = Math.floor(p.hq.x);
+    const hy = Math.floor(p.hq.y);
+    const rad = 14;
+    for (let y = Math.max(0, hy - rad); y <= Math.min(R - 1, hy + rad); y++) {
+      for (let x = Math.max(0, hx - rad); x <= Math.min(C - 1, hx + rad); x++) {
+        if (Math.hypot(x - hx, y - hy) <= rad) {
+          v[y * C + x] = p.id;
+        }
+      }
+    }
+  });
+
+  recomputeTrenchStructures();
 }
