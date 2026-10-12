@@ -93,6 +93,8 @@ export function draw(humanPlayer, players = [], box = null) {
     teamTerritoryCounts.set(p.team, 0);
   });
 
+  const isSpectator = humanPlayer && (humanPlayer.team === 'SPECTATOR' || humanPlayer.isSpectator);
+
   // Renderizar Territorio (color de conquista según el EQUIPO)
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
@@ -101,6 +103,12 @@ export function draw(humanPlayer, players = [], box = null) {
         const p = playerMap.get(pId);
         territoryCounts.set(pId, (territoryCounts.get(pId) || 0) + 1);
         teamTerritoryCounts.set(p.team, (teamTerritoryCounts.get(p.team) || 0) + 1);
+
+        const isEnemyTerritory = humanPlayer && p.team !== humanPlayer.team;
+        if (isEnemyTerritory && !isSpectator && !canSee(x + 0.5, y + 0.5, humanPlayer, players)) {
+          continue;
+        }
+
         const teamCol = CONFIG.TEAM_COLORS[p.team] || CONFIG.COLORS.blue;
         g.fillStyle = teamCol.main + '40'; // Color de conquista del equipo
         g.fillRect(x * S, y * S, S, S);
@@ -122,6 +130,11 @@ export function draw(humanPlayer, players = [], box = null) {
   // Renderizar HQs
   players.forEach((p) => {
     if (!p.hq) return;
+    const isEnemyHQ = humanPlayer && p.team !== humanPlayer.team;
+    if (isEnemyHQ && !isSpectator && !canSee(p.hq.x, p.hq.y, humanPlayer, players)) {
+      return;
+    }
+
     const hqX = p.hq.x * S;
     const hqY = p.hq.y * S;
     const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
@@ -158,7 +171,6 @@ export function draw(humanPlayer, players = [], box = null) {
   });
 
   // Renderizar Unidades
-  const isSpectator = humanPlayer && (humanPlayer.team === 'SPECTATOR' || humanPlayer.isSpectator);
 
   for (const u of U) {
     const uPid = u.playerId || u.t;

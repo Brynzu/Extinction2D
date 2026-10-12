@@ -1,9 +1,9 @@
 import { aiPlay, aiTrench } from './ai.js';
 import { clearBullets, updateCombat, vis } from './combat.js';
 import { CONFIG } from './config.js';
-import { getBox, initInput } from './input.js';
+import { camera, clampCamera, getBox, initInput } from './input.js';
 import { C, R, T, isT, initMap, v } from './map.js';
-import { draw, initCardsUI, resizeCanvas, ui } from './render.js';
+import { cv, draw, initCardsUI, resizeCanvas, ui } from './render.js';
 import { bfs, postTick, wpt } from './trenches.js';
 import { U, addUnit, cl, resetSquadCounter, sep } from './units.js';
 
@@ -263,6 +263,13 @@ function startGame() {
   });
 
   initCardsUI(humanPlayer);
+
+  // Centrar cámara en el HQ del jugador principal
+  if (humanPlayer && humanPlayer.hq) {
+    camera.x = humanPlayer.hq.x * CONFIG.GRID.CELL_SIZE - cv.width / (2 * camera.zoom);
+    camera.y = humanPlayer.hq.y * CONFIG.GRID.CELL_SIZE - cv.height / (2 * camera.zoom);
+    clampCamera();
+  }
 
   lastTime = performance.now();
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
