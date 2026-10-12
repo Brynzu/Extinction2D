@@ -6,12 +6,25 @@ export const CONFIG = {
     CELL_SIZE: 20,
   },
 
-  // Configuración de los HQs y Puntos de Spawn (Horizontal: Azul Izquierda, Rojo Derecha)
-  HQ: {
-    BLUE_SPAWN: { x: 2, y: 78 },
-    BLUE_HQ: { x: 12, y: 40 },
-    RED_SPAWN: { x: 118, y: 2 },
-    RED_HQ: { x: 108, y: 40 },
+  // Configuración de los HQs y Puntos de Spawn para hasta 6 ejércitos
+  HQ_POSITIONS: [
+    { spawn: { x: 2, y: 10 }, hq: { x: 12, y: 20 } },   // Pos 0: Izquierda Arriba
+    { spawn: { x: 118, y: 70 }, hq: { x: 108, y: 60 } }, // Pos 1: Derecha Abajo
+    { spawn: { x: 2, y: 70 }, hq: { x: 12, y: 60 } },   // Pos 2: Izquierda Abajo
+    { spawn: { x: 118, y: 10 }, hq: { x: 108, y: 20 } }, // Pos 3: Derecha Arriba
+    { spawn: { x: 2, y: 40 }, hq: { x: 12, y: 40 } },   // Pos 4: Izquierda Centro
+    { spawn: { x: 118, y: 40 }, hq: { x: 108, y: 40 } }, // Pos 5: Derecha Centro
+  ],
+
+  HQ_MAX_HP: 100,
+
+  COLORS: {
+    blue: { main: '#3b7fd0', light: '#9cc4f5', dark: '#1c4f93', name: 'Azul' },
+    red: { main: '#cf4a3a', light: '#f2a198', dark: '#8f2a1e', name: 'Rojo' },
+    green: { main: '#2eac66', light: '#86e3ad', dark: '#196139', name: 'Verde' },
+    yellow: { main: '#e6b800', light: '#f7e17c', dark: '#8a6e00', name: 'Amarillo' },
+    purple: { main: '#9b59b6', light: '#d2b4de', dark: '#5b2c6f', name: 'Morado' },
+    orange: { main: '#e67e22', light: '#f8c471', dark: '#935116', name: 'Naranja' },
   },
 
   // Configuración de cámara

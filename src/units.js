@@ -5,13 +5,18 @@ export const U = [];
 export const CARDS = CONFIG.CARDS;
 
 export const cl = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
-export const cnt = (t) => U.filter((u) => u.t === t).length;
+export const cnt = (playerId) => U.filter((u) => u.playerId === playerId || u.t === playerId).length;
 
 let nextSquadId = 1;
 
-export function addUnit(t, x, y, targetX = x, targetY = y, isDrone = false, squadId = 0, role = 'rifleman') {
+export function resetSquadCounter() {
+  nextSquadId = 1;
+}
+
+export function addUnit(playerId, x, y, targetX = x, targetY = y, isDrone = false, squadId = 0, role = 'rifleman') {
   U.push({
-    t,
+    playerId,
+    t: playerId,
     x,
     y,
     tx: targetX,
@@ -48,13 +53,13 @@ export function addUnit(t, x, y, targetX = x, targetY = y, isDrone = false, squa
   });
 }
 
-export function deploy(t, cardIndex) {
+export function deploy(player, cardIndex) {
   const c = CARDS[cardIndex];
-  const spawnPos = t > 0 ? CONFIG.HQ.BLUE_SPAWN : CONFIG.HQ.RED_SPAWN;
-  const hqPos = t > 0 ? CONFIG.HQ.BLUE_HQ : CONFIG.HQ.RED_HQ;
+  if (!player || !player.hq || !player.hq.alive) return;
+  const spawnPos = { x: player.hq.spawnX, y: player.hq.spawnY };
+  const hqPos = { x: player.hq.x, y: player.hq.y };
 
   const squadId = c.isDrone ? 0 : nextSquadId++;
-  // Roles para escuadrón de asalto de 5 miembros: 1 líder, 1 machinegunner, 1 grenadier, 2 riflemen
   const roles = c.isDrone ? ['drone'] : ['leader', 'machinegunner', 'grenadier', 'rifleman', 'rifleman'];
 
   for (let k = 0; k < c.k; k++) {
@@ -64,7 +69,7 @@ export function deploy(t, cardIndex) {
     const targetY = cl(hqPos.y + (Math.floor(k / 2) - 0.5) * 1.2, 0.5, R - 0.5);
 
     const role = roles[k % roles.length];
-    addUnit(t, startX, startY, targetX, targetY, c.isDrone, squadId, role);
+    addUnit(player.id, startX, startY, targetX, targetY, c.isDrone, squadId, role);
     const u = U[U.length - 1];
     u.hp = u.mh = c.hp;
     u.sp = c.sp;

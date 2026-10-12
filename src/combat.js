@@ -48,20 +48,29 @@ export const vr = (e, o) => {
   return k === 4 && e.tr ? (o.tr && TC[ci(o)] === TC[ci(e)] ? 5 : 0) : k === 1 ? 3 : 8;
 };
 
-export const canSee = (x, y) =>
+export function areEnemies(id1, id2, players = []) {
+  if (id1 === id2) return false;
+  if (!players || !players.length) return id1 !== id2;
+  const p1 = players.find((p) => p.id === id1);
+  const p2 = players.find((p) => p.id === id2);
+  if (!p1 || !p2) return id1 !== id2;
+  return p1.team !== p2.team;
+}
+
+export const canSee = (x, y, humanPlayerId = 1) =>
   U.some((u) => {
-    if (u.t <= 0) return false;
+    if (u.playerId !== humanPlayerId && u.t !== humanPlayerId) return false;
     const vision = u.isDrone ? CONFIG.VISIBILITY.VISION_DRONE : CONFIG.VISIBILITY.VISION_DEFAULT;
     return Math.hypot(u.x - x, u.y - y) <= vision;
   });
 
-export function vis(dt) {
+export function vis(dt, players = []) {
   for (const e of U) {
     e.rev = Math.max(0, e.rev - dt);
     e.seen = e.rev > 0;
     if (!e.seen) {
       for (const o of U) {
-        if (o.t !== e.t) {
+        if (areEnemies(o.playerId || o.t, e.playerId || e.t, players)) {
           const vision = o.isDrone ? CONFIG.VISIBILITY.VISION_DRONE : vr(e, o);
           if (Math.hypot(o.x - e.x, o.y - e.y) <= vision) {
             e.seen = true;
@@ -73,45 +82,74 @@ export function vis(dt) {
   }
 }
 
-export function triggerExplosion(x, y, radiusMult = 1.0) {
+export function triggerExplosion(x, y, radiusMult = 1.0, players = []) {
   sounds.playExplosion();
   explosions.push({ x, y, l: 0.4, maxL: 0.4 });
 
   const directRadius = 0.6 * radiusMult;
   const splashRadius = 1.1 * radiusMult;
 
-  // Daño directo e impacto de área reducido
   for (const victim of U) {
     const dist = Math.hypot(victim.x - x, victim.y - y);
     if (dist <= directRadius) {
-      victim.hp = 0; // Matar unidad en impacto directo
+      victim.hp = 0;
     } else if (dist <= splashRadius) {
-      victim.hp -= 1.5; // Dañar moderadamente adyacentes
+      victim.hp -= 1.5;
+    }
+  }
+
+  // Daño a HQs
+  for (const p of players) {
+    if (p.hq && p.hq.alive) {
+      const dist = Math.hypot(p.hq.x - x, p.hq.y - y);
+      if (dist <= directRadius) {
+        p.hq.hp -= 30;
+      } else if (dist <= splashRadius) {
+        p.hq.hp -= 15;
+      }
+      if (p.hq.hp <= 0) {
+        p.hq.hp = 0;
+        p.hq.alive = false;
+      }
     }
   }
 }
 
-export function updateCombat(dt) {
+export function updateCombat(dt, players = []) {
   filterExplosions();
   for (const ex of explosions) {
     ex.l -= dt;
   }
 
   for (const u of U) {
+    const uPid = u.playerId || u.t;
     u.cd -= dt;
 
     // Lógica especial para Dron Kamikaze
     if (u.isDrone) {
-      let target = u.attackTarget && u.attackTarget.hp > 0 ? u.attackTarget : null;
+      let target = u.attackTarget && (u.attackTarget.hp > 0 || (u.attackTarget.isHq && u.attackTarget.alive)) ? u.attackTarget : null;
 
       if (!target) {
         let bd = 15;
+        // Buscar unidades enemigas
         for (const e of U) {
-          if (e.t !== u.t && e.seen) {
+          if (areEnemies(uPid, e.playerId || e.t, players) && e.seen) {
             const d = Math.hypot(e.x - u.x, e.y - u.y);
             if (d < bd) {
               bd = d;
               target = e;
+            }
+          }
+        }
+        // Buscar HQs enemigos si no hay unidades cercanas
+        if (!target) {
+          for (const p of players) {
+            if (areEnemies(uPid, p.id, players) && p.hq && p.hq.alive) {
+              const d = Math.hypot(p.hq.x - u.x, p.hq.y - u.y);
+              if (d < bd) {
+                bd = d;
+                target = { x: p.hq.x, y: p.hq.y, isHq: true, hqObj: p.hq, alive: true };
+              }
             }
           }
         }
@@ -121,10 +159,9 @@ export function updateCombat(dt) {
         u.tx = target.x;
         u.ty = target.y;
 
-        // Estrellarse contra el objetivo al estar a distancia de impacto
-        if (Math.hypot(target.x - u.x, target.y - u.y) <= 0.6) {
+        if (Math.hypot(target.x - u.x, target.y - u.y) <= 0.8) {
           u.hp = 0;
-          triggerExplosion(u.x, u.y);
+          triggerExplosion(u.x, u.y, 1.2, players);
           continue;
         }
       }
@@ -132,16 +169,29 @@ export function updateCombat(dt) {
     }
 
     // Lógica para unidades normales
-    let tg = u.attackTarget && u.attackTarget.hp > 0 ? u.attackTarget : null;
+    let tg = u.attackTarget && ((tgTarget) => tgTarget.hp > 0 || (tgTarget.isHq && tgTarget.alive))(u.attackTarget) ? u.attackTarget : null;
     let bd = CONFIG.COMBAT.RANGE_DEFAULT;
 
     if (!tg) {
+      // Buscar unidades enemigas
       for (const e of U) {
-        if (e.t !== u.t) {
+        if (areEnemies(uPid, e.playerId || e.t, players)) {
           const d = Math.hypot(e.x - u.x, e.y - u.y);
           if (d < bd && d <= (tt(e.x, e.y) === 1 ? CONFIG.COMBAT.RANGE_FOREST : CONFIG.COMBAT.RANGE_DEFAULT) && canHit(u, e) && e.seen) {
             bd = d;
             tg = e;
+          }
+        }
+      }
+      // Buscar HQs enemigos si no hay unidades en rango
+      if (!tg) {
+        for (const p of players) {
+          if (areEnemies(uPid, p.id, players) && p.hq && p.hq.alive) {
+            const d = Math.hypot(p.hq.x - u.x, p.hq.y - u.y);
+            if (d < bd && d <= CONFIG.COMBAT.RANGE_DEFAULT) {
+              bd = d;
+              tg = { x: p.hq.x, y: p.hq.y, isHq: true, hqObj: p.hq, alive: true, hp: p.hq.hp };
+            }
           }
         }
       }
@@ -229,8 +279,8 @@ export function updateCombat(dt) {
 
     // Lógica especial de lanzamiento de granada para el rol Granadero (cooldown 15s, rango de impacto 1.1)
     if (u.role === 'grenadier' && tg && bd <= 7.0 && u.grenadeCd <= 0 && u.rd <= 0) {
-      u.grenadeCd = 15.0; // Cooldown aumentado a 15 segundos
-      triggerExplosion(tg.x, tg.y, 1.0); // Rango de explosión de granada ajustado a 1.1 casillas
+      u.grenadeCd = 15.0;
+      triggerExplosion(tg.x, tg.y, 1.0, players);
       u.rev = CONFIG.COMBAT.SHOT_REVEAL_TIME;
     }
 
@@ -241,10 +291,10 @@ export function updateCombat(dt) {
       if (isLmg) {
         u.burstShots = (u.burstShots || 0) + 1;
         if (u.burstShots < 5) {
-          attackCooldown = 0.07; // Cadencia duplicada: Dispara 5 balas a 0.07s por disparo
+          attackCooldown = 0.07;
         } else {
           u.burstShots = 0;
-          attackCooldown = 1.5; // Pausa de 1.5s entre ráfagas
+          attackCooldown = 1.5;
         }
       }
 
@@ -269,7 +319,8 @@ export function updateCombat(dt) {
         dp: deep(u) || deep(tg) ? 1 : 0,
         vx: Math.cos(an) * CONFIG.COMBAT.BULLET_SPEED,
         vy: Math.sin(an) * CONFIG.COMBAT.BULLET_SPEED,
-        t: u.t,
+        t: uPid,
+        playerId: uPid,
         l: CONFIG.COMBAT.BULLET_LIFETIME,
       });
       sounds.playShot();
@@ -282,16 +333,37 @@ export function updateCombat(dt) {
     b.l -= dt;
     const ns = Math.ceil((CONFIG.COMBAT.BULLET_SPEED * dt) / 0.15);
     const h = dt / ns;
+    const bulletPid = b.playerId || b.t;
     for (let s = 0; s < ns && !b.dead; s++) {
       b.x += b.vx * h;
       b.y += b.vy * h;
+
+      // Impacto en unidades enemigas
       for (const e of U) {
-        if (e.t !== b.t && Math.hypot(e.x - b.x, e.y - b.y) < CONFIG.COMBAT.BULLET_HIT_RADIUS && hitOk(b, e)) {
+        if (areEnemies(bulletPid, e.playerId || e.t, players) && Math.hypot(e.x - b.x, e.y - b.y) < CONFIG.COMBAT.BULLET_HIT_RADIUS && hitOk(b, e)) {
           e.hp -= tt(e.x, e.y) === 3 && b.tn < 0 ? CONFIG.COMBAT.TRENCH_SHALLOW_DAMAGE_MULT : CONFIG.COMBAT.BULLET_DAMAGE;
           b.dead = 1;
           break;
         }
       }
+
+      // Impacto en HQs enemigos
+      if (!b.dead) {
+        for (const p of players) {
+          if (areEnemies(bulletPid, p.id, players) && p.hq && p.hq.alive) {
+            if (Math.hypot(p.hq.x - b.x, p.hq.y - b.y) < 1.5) {
+              p.hq.hp -= CONFIG.COMBAT.BULLET_DAMAGE;
+              if (p.hq.hp <= 0) {
+                p.hq.hp = 0;
+                p.hq.alive = false;
+              }
+              b.dead = 1;
+              break;
+            }
+          }
+        }
+      }
+
       if (
         !b.dead &&
         tt(b.x, b.y) === 1 &&
