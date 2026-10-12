@@ -152,27 +152,26 @@ export function initInput(humanPlayerGetter, playersGetter) {
       if (isT(cx, cy) && !u.isDrone) {
         if (i === 0) orderTrench(selectedUnits.filter((w) => !w.isDrone), cx, cy);
       } else if (u.tr) {
-        if (dbl) {
-          const p = bfs(Math.floor(u.x), Math.floor(u.y), (a, b) => T[b * C + a] === 3);
-          if (p) {
-            if (u.cb) {
-              u.savedMoveTarget = {
-                tx: u.tx,
-                ty: u.ty,
-                auto: u.auto,
-                enter: u.enter,
-                gc: u.gc,
-                path: p,
-                exit: [ox, oy],
-                hold: null,
-                post: null,
-              };
-            } else {
-              u.path = p;
-              u.exit = [ox, oy];
-              u.hold = null;
-              u.post = null;
-            }
+        // Al tocar fuera de la trinchera, la unidad dentro de trinchera baja/alta busca la salida superficial (T===3) más cercana
+        const p = bfs(Math.floor(u.x), Math.floor(u.y), (a, b) => T[b * C + a] === 3);
+        if (p) {
+          if (u.cb) {
+            u.savedMoveTarget = {
+              tx: u.tx,
+              ty: u.ty,
+              auto: u.auto,
+              enter: u.enter,
+              gc: u.gc,
+              path: p,
+              exit: [ox, oy],
+              hold: null,
+              post: null,
+            };
+          } else {
+            u.path = p;
+            u.exit = [ox, oy];
+            u.hold = null;
+            u.post = null;
           }
         }
       } else {

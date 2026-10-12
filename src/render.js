@@ -265,10 +265,11 @@ export function draw(humanPlayer, players = [], box = null) {
     if (humanPlayer && bPid !== humanPlayer.id && !canSee(bullet.x, bullet.y, humanPlayer, players)) continue;
     const p = playerMap.get(bPid) || { colorKey: 'blue' };
     const col = CONFIG.COLORS[p.colorKey] || CONFIG.COLORS.blue;
+    const offY = bullet.offsetY || 0;
     g.strokeStyle = col.light;
     g.beginPath();
-    g.moveTo((bullet.x - bullet.vx * 0.03) * S, (bullet.y - bullet.vy * 0.03) * S);
-    g.lineTo(bullet.x * S, bullet.y * S);
+    g.moveTo((bullet.x - bullet.vx * 0.03) * S, (bullet.y + offY - bullet.vy * 0.03) * S);
+    g.lineTo(bullet.x * S, (bullet.y + offY) * S);
     g.stroke();
   }
 
