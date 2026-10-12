@@ -49,6 +49,16 @@ function findStrugglingAlly(p, players) {
   return null;
 }
 
+function checkBorderCongestion() {
+  let borderCount = 0;
+  for (const u of U) {
+    if (u.y < R * 0.20 || u.y > R * 0.80) {
+      borderCount++;
+    }
+  }
+  return borderCount >= Math.min(10, Math.max(6, U.length * 0.40));
+}
+
 export function updateAIDrones(p, players) {
   const aiDrones = U.filter((u) => (u.playerId === p.id || u.t === p.id) && u.isDrone);
   if (!aiDrones.length || !p.hq) return;
@@ -83,8 +93,8 @@ export function updateAIDrones(p, players) {
   } else {
     waitingDrones.forEach((d, k) => {
       d.attackTarget = null;
-      d.tx = cl(p.hq.x + ((k % 4) - 1.5) * 2.2, 2, C - 2);
-      d.ty = cl(p.hq.y + (Math.floor(k / 4) - 1) * 2.2, 2, R - 2);
+      d.tx = cl(p.hq.x + ((k % 3) - 1) * 2.8, 2, C - 2);
+      d.ty = cl(p.hq.y + (Math.floor(k / 3) - 1) * 2.8, 2, R - 2);
     });
   }
 }
@@ -160,8 +170,16 @@ export function aiTrench(p, players) {
     const avgX = squadMembers.reduce((sum, u) => sum + u.x, 0) / squadMembers.length;
     const avgY = squadMembers.reduce((sum, u) => sum + u.y, 0) / squadMembers.length;
 
-    const dx = targetHQ.x - avgX;
-    const dy = targetHQ.y - avgY;
+    let dx = targetHQ.x - avgX;
+    let dy = targetHQ.y - avgY;
+
+    // Si hay acumulación de unidades en los bordes superiores e inferiores, la IA decide atacar por el medio
+    const isBorderCongested = checkBorderCongestion();
+    if (isBorderCongested) {
+      const centerY = R / 2 + ((sId % 3) - 1) * 6;
+      dy = centerY - avgY;
+    }
+
     const dist = Math.hypot(dx, dy) || 1;
 
     const stepDist = Math.min(dist, 12);

@@ -145,15 +145,25 @@ function setupMenuUI() {
       // Selector de Equipo
       const teamSelect = document.createElement('select');
       teamSelect.className = 'player-select';
-      ['A', 'B', 'C', 'D', 'E', 'F'].forEach((t) => {
+      [
+        { val: 'A', label: 'Eq A' },
+        { val: 'B', label: 'Eq B' },
+        { val: 'C', label: 'Eq C' },
+        { val: 'D', label: 'Eq D' },
+        { val: 'E', label: 'Eq E' },
+        { val: 'F', label: 'Eq F' },
+        { val: 'SPECTATOR', label: 'Espectador' },
+      ].forEach((t) => {
         const opt = document.createElement('option');
-        opt.value = t;
-        opt.textContent = 'Eq ' + t;
-        if (t === p.team) opt.selected = true;
+        opt.value = t.val;
+        opt.textContent = t.label;
+        if (t.val === p.team) opt.selected = true;
         teamSelect.appendChild(opt);
       });
       teamSelect.onchange = () => {
         p.team = teamSelect.value;
+        if (p.team === 'SPECTATOR') p.isSpectator = true;
+        else p.isSpectator = false;
       };
 
       row.appendChild(nameSpan);
