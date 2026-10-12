@@ -148,19 +148,7 @@ export function draw(humanPlayer, players = [], box = null) {
     }
   }
 
-  // 4. Renderizar Capa de Niebla de Guerra Clásica (Fog of War) sobre áreas fuera de línea de visión
-  if (!isSpectator) {
-    g.fillStyle = 'rgba(12, 15, 18, 0.62)';
-    for (let y = 0; y < R; y++) {
-      for (let x = 0; x < C; x++) {
-        if (!canSee(x + 0.5, y + 0.5, humanPlayer, players)) {
-          g.fillRect(x * S, y * S, S, S);
-        }
-      }
-    }
-  }
-
-  // 5. Renderizar HQs
+  // 4. Renderizar HQs
   players.forEach((p) => {
     if (!p.hq) return;
     const isEnemyHQ = humanPlayer && p.team !== humanPlayer.team;
@@ -313,6 +301,7 @@ export function draw(humanPlayer, players = [], box = null) {
   const renderedTeams = new Set();
 
   players.forEach((p) => {
+    if (p.team === 'SPECTATOR') return;
     if (renderedTeams.has(p.team)) return;
     renderedTeams.add(p.team);
 
@@ -322,7 +311,7 @@ export function draw(humanPlayer, players = [], box = null) {
 
     barHtml += `<i style="background:${teamCol.main};width:${pct}%" title="Equipo ${p.team}: ${pct}%"></i>`;
 
-    if (humanPlayer && p.team === humanPlayer.team) {
+    if (humanPlayer && p.team === humanPlayer.team && !isSpectator) {
       myTeamPct = pct;
     } else {
       enemyPct += pct;
@@ -330,8 +319,19 @@ export function draw(humanPlayer, players = [], box = null) {
   });
 
   territoryBarEl.innerHTML = barHtml;
-  pbEl.textContent = `Tú (Eq ${humanPlayer ? humanPlayer.team : 'A'}) ${myTeamPct}%`;
-  prEl.textContent = `Enemigos ${enemyPct}%`;
+  if (isSpectator) {
+    const teamsList = Array.from(renderedTeams);
+    const teamA = teamsList[0] || 'A';
+    const teamBPct = teamTerritoryCounts.get(teamsList[1]) || 0;
+    const teamAPct = Math.round(((teamTerritoryCounts.get(teamA) || 0) / totalCells) * 100);
+    const otherPct = Math.round((teamBPct / totalCells) * 100);
+
+    pbEl.textContent = `Eq ${teamA} ${teamAPct}%`;
+    prEl.textContent = `Otros ${100 - teamAPct}%`;
+  } else {
+    pbEl.textContent = `Tú (Eq ${humanPlayer ? humanPlayer.team : 'A'}) ${myTeamPct}%`;
+    prEl.textContent = `Enemigos ${enemyPct}%`;
+  }
 }
 
 function drawMinimap(playerMap, humanPlayer, players) {
