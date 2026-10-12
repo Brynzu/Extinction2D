@@ -126,7 +126,7 @@ export function draw(humanPlayer, players = [], box = null) {
     }
   }
 
-  // 3. Renderizar Árboles
+  // 3. Renderizar Troncos de Árboles (por debajo de las unidades)
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
       if (T[y * C + x] === 1) {
@@ -134,16 +134,6 @@ export function draw(humanPlayer, players = [], box = null) {
         g.beginPath();
         g.arc((x + 0.5) * S, (y + 0.5) * S, S * 0.12, 0, 7);
         g.fill();
-        g.globalAlpha = 0.88;
-        g.fillStyle = '#2f5a2c';
-        g.beginPath();
-        g.arc((x + 0.5) * S, (y + 0.5) * S, S * 0.42, 0, 7);
-        g.fill();
-        g.fillStyle = '#4a8a44';
-        g.beginPath();
-        g.arc((x + 0.4) * S, (y + 0.4) * S, S * 0.2, 0, 7);
-        g.fill();
-        g.globalAlpha = 1;
       }
     }
   }
@@ -271,6 +261,24 @@ export function draw(humanPlayer, players = [], box = null) {
     g.moveTo((bullet.x - bullet.vx * 0.03) * S, (bullet.y + offY - bullet.vy * 0.03) * S);
     g.lineTo(bullet.x * S, (bullet.y + offY) * S);
     g.stroke();
+  }
+
+  // Renderizar Copas de Árboles (por encima de unidades y balas)
+  for (let y = 0; y < R; y++) {
+    for (let x = 0; x < C; x++) {
+      if (T[y * C + x] === 1) {
+        g.globalAlpha = 0.88;
+        g.fillStyle = '#2f5a2c';
+        g.beginPath();
+        g.arc((x + 0.5) * S, (y + 0.5) * S, S * 0.42, 0, 7);
+        g.fill();
+        g.fillStyle = '#4a8a44';
+        g.beginPath();
+        g.arc((x + 0.4) * S, (y + 0.4) * S, S * 0.2, 0, 7);
+        g.fill();
+        g.globalAlpha = 1;
+      }
+    }
   }
 
   // Recuadro de Selección

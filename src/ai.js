@@ -117,34 +117,39 @@ export function aiPlay(p, players) {
     p.droneSwarmGoal = Math.floor(3 + Math.random() * 5);
   }
 
-  // Despliegue de cartas
-  if (myUnits.length < CONFIG.GAME.MAX_UNITS_PER_SIDE) {
+  // Despliegue de cartas (flexible y continuo mientras tenga recursos suficientes)
+  let currentUnitsCount = myUnits.length;
+  while (currentUnitsCount < CONFIG.GAME.MAX_UNITS_PER_SIDE) {
     const availableIndices = [];
     for (let i = 0; i < 4; i++) {
-      if (p.cds[i] <= 0 && p.res >= CARDS[i].c && myUnits.length + CARDS[i].k <= CONFIG.GAME.MAX_UNITS_PER_SIDE) {
+      if (p.cds[i] <= 0 && p.res >= CARDS[i].c && currentUnitsCount + CARDS[i].k <= CONFIG.GAME.MAX_UNITS_PER_SIDE) {
         availableIndices.push(i);
       }
     }
 
-    if (availableIndices.length > 0) {
-      const droneCardIndex = availableIndices.find((idx) => CARDS[idx].isDrone);
-      const squadIndices = availableIndices.filter((idx) => !CARDS[idx].isDrone);
+    if (availableIndices.length === 0) break;
 
-      let deployDrone = false;
-      if (droneCardIndex !== undefined && myGroundUnits.length >= 8 && myDrones.length < p.droneSwarmGoal) {
-        deployDrone = Math.random() < 0.65;
-      }
+    const droneCardIndex = availableIndices.find((idx) => CARDS[idx].isDrone);
+    const squadIndices = availableIndices.filter((idx) => !CARDS[idx].isDrone);
 
-      if (deployDrone && droneCardIndex !== undefined) {
-        p.res -= CARDS[droneCardIndex].c;
-        p.cds[droneCardIndex] = 2.5;
-        deploy(p, droneCardIndex);
-      } else if (squadIndices.length > 0) {
-        const chosenIndex = squadIndices[Math.floor(Math.random() * squadIndices.length)];
-        p.res -= CARDS[chosenIndex].c;
-        p.cds[chosenIndex] = CARDS[chosenIndex].cd;
-        deploy(p, chosenIndex);
-      }
+    let deployDrone = false;
+    if (droneCardIndex !== undefined && myGroundUnits.length >= 6 && myDrones.length < p.droneSwarmGoal) {
+      deployDrone = Math.random() < 0.65;
+    }
+
+    if (deployDrone && droneCardIndex !== undefined) {
+      p.res -= CARDS[droneCardIndex].c;
+      p.cds[droneCardIndex] = 2.5;
+      deploy(p, droneCardIndex);
+      currentUnitsCount += CARDS[droneCardIndex].k;
+    } else if (squadIndices.length > 0) {
+      const chosenIndex = squadIndices[Math.floor(Math.random() * squadIndices.length)];
+      p.res -= CARDS[chosenIndex].c;
+      p.cds[chosenIndex] = CARDS[chosenIndex].cd;
+      deploy(p, chosenIndex);
+      currentUnitsCount += CARDS[chosenIndex].k;
+    } else {
+      break;
     }
   }
 
