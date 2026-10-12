@@ -163,6 +163,31 @@ export function aiPlay(p, players) {
   aiTrench(p, players);
 }
 
+function findTrenchOrForestCover(x, y, searchRadius = 16) {
+  let bestCandidate = null;
+  let bestDist = Infinity;
+
+  const minX = Math.max(2, Math.floor(x - searchRadius));
+  const maxX = Math.min(C - 3, Math.ceil(x + searchRadius));
+  const minY = Math.max(2, Math.floor(y - searchRadius));
+  const maxY = Math.min(R - 3, Math.ceil(y + searchRadius));
+
+  for (let cy = minY; cy <= maxY; cy++) {
+    for (let cx = minX; cx <= maxX; cx++) {
+      const tileType = T[cy * C + cx];
+      if (tileType === 1 || tileType >= 3) {
+        const dist = Math.hypot(cx + 0.5 - x, cy + 0.5 - y);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestCandidate = { x: cx + 0.5, y: cy + 0.5, isTrench: tileType >= 3 };
+        }
+      }
+    }
+  }
+
+  return bestCandidate;
+}
+
 export function aiTrench(p, players) {
   if (!p || !p.hq) return;
   const myGroundUnits = U.filter((u) => (u.playerId === p.id || u.t === p.id) && !u.isDrone);
@@ -180,26 +205,53 @@ export function aiTrench(p, players) {
     squadsMap.get(sId).push(u);
   }
 
+  const squads = Array.from(squadsMap.values());
+  const totalSquads = squads.length;
+
+  if (!p.assaultGoal) {
+    p.assaultGoal = Math.floor(2 + Math.random() * 4); // 2 a 5 escuadrones para un asalto coordinado
+  }
+
+  const isAssaultReady = totalSquads >= p.assaultGoal;
+
   const assignedTrenchCells = new Set();
 
-  for (const [sId, squadMembers] of squadsMap.entries()) {
+  for (let sIndex = 0; sIndex < squads.length; sIndex++) {
+    const squadMembers = squads[sIndex];
     if (squadMembers.some((u) => u.cb)) continue;
 
     const avgX = squadMembers.reduce((sum, u) => sum + u.x, 0) / squadMembers.length;
     const avgY = squadMembers.reduce((sum, u) => sum + u.y, 0) / squadMembers.length;
 
+    // FASE DE REUNIÓN / ENSAMBLE DE ASALTO
+    if (!isAssaultReady) {
+      const rallyX = cl(p.hq.x + ((sIndex % 3) - 1) * 4, 3, C - 3);
+      const rallyY = cl(p.hq.y + (Math.floor(sIndex / 3) - 1) * 4, 3, R - 3);
+
+      const cover = findTrenchOrForestCover(rallyX, rallyY, 12);
+      const targetRallyX = cover ? cover.x : rallyX;
+      const targetRallyY = cover ? cover.y : rallyY;
+
+      squadMembers.forEach((member, k) => {
+        member.auto = false;
+        member.enter = false;
+        member.tx = cl(targetRallyX + ((k % 2) - 0.5) * 1.5, 0.5, C - 0.5);
+        member.ty = cl(targetRallyY + (Math.floor(k / 2) - 0.5) * 1.5, 0.5, R - 0.5);
+      });
+      continue;
+    }
+
+    // FASE DE ASALTO COORDINADO / TÁCTICO
     let dx = targetHQ.x - avgX;
     let dy = targetHQ.y - avgY;
 
-    // Si hay acumulación de unidades en los bordes superiores e inferiores, la IA decide atacar por el medio
     const isBorderCongested = checkBorderCongestion();
     if (isBorderCongested) {
-      const centerY = R / 2 + ((sId % 3) - 1) * 6;
+      const centerY = R / 2 + ((sIndex % 3) - 1) * 6;
       dy = centerY - avgY;
     }
 
     const dist = Math.hypot(dx, dy) || 1;
-
     const stepDist = Math.min(dist, 12);
     const nextX = cl(avgX + (dx / dist) * stepDist, 2, C - 2);
     const nextY = cl(avgY + (dy / dist) * stepDist, 2, R - 2);
@@ -219,18 +271,24 @@ export function aiTrench(p, players) {
     const isMovingOnGround = squadMembers.some((u) => !u.tr && Math.hypot(u.tx - u.x, u.ty - u.y) > 2.0);
     if (isMovingOnGround) continue;
 
-    const nearbyTrenchIdx = TRL.find((i) => {
-      if (assignedTrenchCells.has(i)) return false;
-      const tx = (i % C) + 0.5;
-      const ty = Math.floor(i / C) + 0.5;
-      return Math.hypot(tx - avgX, ty - avgY) < 14;
-    });
+    // Buscar trinchera o bosque en el camino para avanzar con cobertura
+    const nearbyCover = findTrenchOrForestCover(nextX, nextY, 12);
 
-    if (nearbyTrenchIdx !== undefined && Math.random() < 0.45) {
-      assignedTrenchCells.add(nearbyTrenchIdx);
-      const tX = (nearbyTrenchIdx % C) + 0.5;
-      const tY = Math.floor(nearbyTrenchIdx / C) + 0.5;
-      orderTrench(squadMembers, Math.floor(tX), Math.floor(tY));
+    if (nearbyCover && nearbyCover.isTrench) {
+      const tX = Math.floor(nearbyCover.x);
+      const tY = Math.floor(nearbyCover.y);
+      const tIdx = tY * C + tX;
+      if (!assignedTrenchCells.has(tIdx)) {
+        assignedTrenchCells.add(tIdx);
+        orderTrench(squadMembers, tX, tY);
+      }
+    } else if (nearbyCover) {
+      squadMembers.forEach((member, k) => {
+        member.auto = false;
+        member.enter = false;
+        member.tx = cl(nearbyCover.x + ((k % 2) - 0.5) * 1.5, 0.5, C - 0.5);
+        member.ty = cl(nearbyCover.y + (Math.floor(k / 2) - 0.5) * 1.5, 0.5, R - 0.5);
+      });
     } else {
       squadMembers.forEach((member, k) => {
         member.auto = false;
@@ -238,6 +296,11 @@ export function aiTrench(p, players) {
         member.tx = cl(nextX + ((k % 2) - 0.5) * 1.5, 0.5, C - 0.5);
         member.ty = cl(nextY + (Math.floor(k / 2) - 0.5) * 1.5, 0.5, R - 0.5);
       });
+    }
+
+    // Reiniciar meta de asalto una vez ejecutado
+    if (sIndex === squads.length - 1) {
+      p.assaultGoal = Math.floor(2 + Math.random() * 4);
     }
   }
 }
