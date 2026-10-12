@@ -347,18 +347,17 @@ export function updateCombat(dt, players = []) {
       // Impacto en unidades enemigas
       for (const e of U) {
         if (areEnemies(bulletPid, e.playerId || e.t, players) && Math.hypot(e.x - b.x, e.y - b.y) < CONFIG.COMBAT.BULLET_HIT_RADIUS && hitOk(b, e)) {
-          if (e.isDrone && (e.evasion || 0) > 0) {
-            if (!b.checkedDrones) b.checkedDrones = new Set();
+          if (e.isDrone) {
+            if (!b.checkedDrones) b.checkedDrones = new Map();
             if (!b.checkedDrones.has(e)) {
-              b.checkedDrones.add(e);
-              if (Math.random() * 100 < e.evasion) {
-                // Evasión exitosa del dron: registrar esquiva para que no se vuelva a chequear esta bala contra este dron
+              const evaded = Math.random() * 100 < (e.evasion || 0);
+              b.checkedDrones.set(e, evaded);
+              if (evaded) {
                 b.offsetY = (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.3);
-                continue;
+                continue; // Bala esquivada
               }
-            } else if (b.offsetY !== undefined) {
-              // Ya esquivó a este dron, la bala pasa de largo
-              continue;
+            } else if (b.checkedDrones.get(e) === true) {
+              continue; // Ya esquivada previamente por este dron
             }
           }
           e.hp -= tt(e.x, e.y) === 3 && b.tn < 0 ? CONFIG.COMBAT.TRENCH_SHALLOW_DAMAGE_MULT : CONFIG.COMBAT.BULLET_DAMAGE;

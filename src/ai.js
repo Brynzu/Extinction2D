@@ -164,27 +164,52 @@ export function aiPlay(p, players) {
   aiTrench(p, players);
 }
 
-// Búsqueda de la celda no controlada (neutral o enemiga) más cercana para expansión constante
-function findNearestUncontrolledCell(p, fromX, fromY, players = []) {
-  let bestCandidate = null;
-  let minSquareDist = Infinity;
+// Búsqueda de celda no controlada asignada por sectores para expansión natural y toma de huecos neutrales
+function findUncontrolledCellForSquad(p, squadIndex, totalSquads, squadX, squadY, players = []) {
+  const enemyHQ = getClosestEnemyHQ(p, players, p.hq.x, p.hq.y);
+  if (!enemyHQ) return null;
 
-  const step = 2; // escaneo por cuadrícula para rendimiento
+  const mainAngle = Math.atan2(enemyHQ.y - p.hq.y, enemyHQ.x - p.hq.x);
+
+  let offsetAngle = 0;
+  if (totalSquads > 1) {
+    const spread = 1.3; // ~75 grados de abanico de expansión
+    offsetAngle = ((squadIndex / (totalSquads - 1)) - 0.5) * spread;
+  }
+  const squadSectorAngle = mainAngle + offsetAngle;
+
+  let bestCell = null;
+  let bestScore = -Infinity;
+
+  const step = 2;
   for (let cy = 2; cy < R - 2; cy += step) {
     for (let cx = 2; cx < C - 2; cx += step) {
       const cellOwnerId = Math.round(v[cy * C + cx]);
-      const isMyTerritory = cellOwnerId === p.id;
+      if (cellOwnerId === p.id) continue; // Ya pertenece a nuestro equipo
 
-      if (!isMyTerritory) {
-        const d2 = (cx + 0.5 - fromX) ** 2 + (cy + 0.5 - fromY) ** 2;
-        if (d2 < minSquareDist) {
-          minSquareDist = d2;
-          bestCandidate = { x: cx + 0.5, y: cy + 0.5 };
-        }
+      const distHQ = Math.hypot(cx + 0.5 - p.hq.x, cy + 0.5 - p.hq.y);
+      const distSquad = Math.hypot(cx + 0.5 - squadX, cy + 0.5 - squadY);
+
+      const cellAngle = Math.atan2(cy + 0.5 - p.hq.y, cx + 0.5 - p.hq.x);
+      let angleDiff = Math.abs(cellAngle - squadSectorAngle);
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      angleDiff = Math.abs(angleDiff);
+
+      let score = -distSquad * 1.5 - angleDiff * 18;
+
+      // Gran prioridad a celdas neutrales sin reclamar cerca de nuestro HQ para limpiar el área inicial
+      if (cellOwnerId === 0 && distHQ < 30) {
+        score += (35 - distHQ) * 6;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCell = { x: cx + 0.5, y: cy + 0.5 };
       }
     }
   }
-  return bestCandidate;
+
+  return bestCell;
 }
 
 // Obtener o calcular información de ocupación de trincheras y bosques en todo el mapa
@@ -300,12 +325,12 @@ export function aiTrench(p, players) {
     const avgY = squadMembers.reduce((sum, u) => sum + u.y, 0) / squadMembers.length;
 
     // 1. EXPANSIÓN CONSTANTE DE TERRITORIO (Prioridad para evitar huecos neutrales)
-    const uncontrolledCell = findNearestUncontrolledCell(p, avgX, avgY, players);
+    const uncontrolledCell = findUncontrolledCellForSquad(p, sIndex, totalSquads, avgX, avgY, players);
 
     // 2. FASE DE PREPARACIÓN Y ACUMULACIÓN DE ASALTO (2-4 ESCUADRONES)
     if (!isAssaultReady) {
       // Si hay territorio sin tomar cercano, expandir el frente primero
-      if (uncontrolledCell && Math.hypot(uncontrolledCell.x - avgX, uncontrolledCell.y - avgY) > 4) {
+      if (uncontrolledCell && Math.hypot(uncontrolledCell.x - avgX, uncontrolledCell.y - avgY) > 2) {
         const targetX = uncontrolledCell.x;
         const targetY = uncontrolledCell.y;
 

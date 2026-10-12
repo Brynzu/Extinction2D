@@ -81,7 +81,7 @@ export const CONFIG = {
     ATTACK_COOLDOWN: 1,
     REACTION_MAX: 0.5,
     BULLET_SPEED: 26.4, // +20% (22 * 1.20 = 26.4)
-    BULLET_LIFETIME: 0.65, // +30% (0.5 * 1.30 = 0.65)
+    BULLET_LIFETIME: 0.52, // Reducido un 20% (0.65 * 0.80 = 0.52)
     BULLET_DAMAGE: 1,
     BULLET_HIT_RADIUS: 0.6,
     BULLET_WIDTH: 1.275, // -15% grosor
