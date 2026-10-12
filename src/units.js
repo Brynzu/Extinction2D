@@ -23,8 +23,9 @@ export function addUnit(t, x, y, targetX = x, targetY = y, isDrone = false, squa
     sp: isDrone ? 4.5 : 1,
     isDrone,
     squadId,
-    role, // 'rifleman' | 'machinegunner' | 'grenadier'
+    role, // 'leader' | 'machinegunner' | 'grenadier' | 'rifleman'
     grenadeCd: 0,
+    burstShots: 0, // Contador de ráfaga para ametrallador
     tr: false,
     path: [],
     exit: null,
@@ -54,7 +55,7 @@ export function deploy(t, cardIndex) {
 
   const squadId = c.isDrone ? 0 : nextSquadId++;
   // Roles para escuadrón de asalto de 4 miembros: 1 machinegunner, 1 grenadier, 2 riflemen
-  const roles = c.isDrone ? ['drone'] : ['machinegunner', 'grenadier', 'rifleman', 'rifleman'];
+  const roles = c.isDrone ? ['drone'] : ['leader', 'machinegunner', 'grenadier', 'rifleman'];
 
   for (let k = 0; k < c.k; k++) {
     const startX = cl(spawnPos.x + ((k % 2) - 0.5) * 1.2, 0.5, C - 0.5);
