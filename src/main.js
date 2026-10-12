@@ -66,7 +66,16 @@ function setupMenuUI() {
   };
 
   spAiCountEl.oninput = () => {
-    spSettings.aiCount = parseInt(spAiCountEl.value, 10);
+    let val = parseInt(spAiCountEl.value, 10);
+    const humanP = spSettings.playersConfig.find((p) => p.isHuman);
+    const isSpectator = humanP && humanP.team === 'SPECTATOR';
+
+    if (!isSpectator && val > 5) {
+      val = 5;
+      spAiCountEl.value = '5';
+    }
+
+    spSettings.aiCount = val;
     lblAiCountEl.textContent = spSettings.aiCount;
     updatePlayersConfig();
   };
@@ -164,6 +173,14 @@ function setupMenuUI() {
         p.team = teamSelect.value;
         if (p.team === 'SPECTATOR') p.isSpectator = true;
         else p.isSpectator = false;
+
+        // Si el jugador humano ya no es espectador y el contador de IA era 6, ajustarlo a 5
+        if (p.isHuman && !p.isSpectator && spSettings.aiCount > 5) {
+          spSettings.aiCount = 5;
+          spAiCountEl.value = '5';
+          lblAiCountEl.textContent = '5';
+          updatePlayersConfig();
+        }
       };
 
       row.appendChild(nameSpan);
@@ -213,9 +230,16 @@ function startGame() {
   resetSquadCounter();
 
   humanPlayer = spSettings.playersConfig.find((p) => p.isHuman) || spSettings.playersConfig[0];
-  const activeCombatants = spSettings.playersConfig.filter((p) => p.team !== 'SPECTATOR');
 
-  // Calcular escala de mapa y posiciones de HQ según los combatientes activos
+  // Si el jugador humano está en equipo Espectador, se marca isSpectator = true
+  if (humanPlayer.team === 'SPECTATOR') {
+    humanPlayer.isSpectator = true;
+  }
+
+  // Filtrar combatientes activos excluyendo jugadores en modo Espectador
+  const activeCombatants = spSettings.playersConfig.filter((p) => p.team !== 'SPECTATOR' && !p.isSpectator);
+
+  // Calcular escala de mapa y posiciones de HQ según los combatientes activos únicamente
   const totalActiveArmies = activeCombatants.length;
   const mapScale = totalActiveArmies >= 5 ? 2.0 : totalActiveArmies >= 3 ? 1.5 : 1.0;
   const cols = Math.round(CONFIG.GRID.COLUMNS * mapScale);

@@ -119,10 +119,11 @@ function generateLinearTrenchNetwork(startX, startY) {
 }
 
 export function initMap(preset = 'default', players = []) {
+  const activeCombatants = players.filter((p) => p.team !== 'SPECTATOR' && !p.isSpectator);
   let scale = 1.0;
-  if (players.length >= 5) {
+  if (activeCombatants.length >= 5) {
     scale = 2.0; // x2.0 para 5 o 6 ejércitos
-  } else if (players.length >= 3) {
+  } else if (activeCombatants.length >= 3) {
     scale = 1.5; // x1.5 para 3 o 4 ejércitos
   }
 

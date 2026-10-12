@@ -59,12 +59,30 @@ function checkBorderCongestion() {
   return borderCount >= Math.min(10, Math.max(6, U.length * 0.40));
 }
 
+let cachedEnemyUnitsMap = null;
+let cachedEnemyUnitsFrame = -1;
+
+function getEnemyUnitsCached(players) {
+  const currentFrame = Math.floor(performance.now() / 100);
+  if (cachedEnemyUnitsMap && cachedEnemyUnitsFrame === currentFrame) {
+    return cachedEnemyUnitsMap;
+  }
+  cachedEnemyUnitsMap = new Map();
+  for (const p of players) {
+    const enemies = getEnemiesOf(p, players);
+    const enemyUnits = U.filter((u) => enemies.some((e) => e.id === u.playerId || e.id === u.t));
+    cachedEnemyUnitsMap.set(p.id, enemyUnits);
+  }
+  cachedEnemyUnitsFrame = currentFrame;
+  return cachedEnemyUnitsMap;
+}
+
 export function updateAIDrones(p, players) {
   const aiDrones = U.filter((u) => (u.playerId === p.id || u.t === p.id) && u.isDrone);
   if (!aiDrones.length || !p.hq) return;
 
-  const enemies = getEnemiesOf(p, players);
-  const enemyUnits = U.filter((u) => enemies.some((e) => e.id === u.playerId || e.id === u.t));
+  const enemyUnitsMap = getEnemyUnitsCached(players);
+  const enemyUnits = enemyUnitsMap.get(p.id) || [];
 
   const strugglingAlly = findStrugglingAlly(p, players);
   const enemyHQ = getClosestEnemyHQ(p, players, p.hq.x, p.hq.y);
