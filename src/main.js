@@ -20,10 +20,16 @@ const rate = (t) => CONFIG.GAME.RESOURCE_BASE_RATE + CONFIG.GAME.RESOURCE_TERRIT
 export function initGame() {
   initMap();
 
-  // Inicializar unidades iniciales (5 azules abajo, 5 rojas arriba)
-  for (let i = 0; i < 5; i++) {
-    addUnit(1, CONFIG.HQ.BLUE_HQ.x + (i - 2) * 2, CONFIG.HQ.BLUE_HQ.y - 2);
-    addUnit(-1, CONFIG.HQ.RED_HQ.x + (i - 2) * 2, CONFIG.HQ.RED_HQ.y + 2);
+  // Inicializar unidades iniciales desplegando un Escuadrón de Asalto por bando
+  // Azul (Bando 1, con squadId y roles completos)
+  for (let i = 0; i < 4; i++) {
+    const roles = ['leader', 'machinegunner', 'grenadier', 'rifleman'];
+    addUnit(1, CONFIG.HQ.BLUE_HQ.x + (i - 1.5) * 1.5, CONFIG.HQ.BLUE_HQ.y - 2, CONFIG.HQ.BLUE_HQ.x + (i - 1.5) * 1.5, CONFIG.HQ.BLUE_HQ.y - 2, false, 1, roles[i]);
+  }
+  // Rojo (Bando -1, con squadId y roles completos)
+  for (let i = 0; i < 4; i++) {
+    const roles = ['leader', 'machinegunner', 'grenadier', 'rifleman'];
+    addUnit(-1, CONFIG.HQ.RED_HQ.x + (i - 1.5) * 1.5, CONFIG.HQ.RED_HQ.y + 2, CONFIG.HQ.RED_HQ.x + (i - 1.5) * 1.5, CONFIG.HQ.RED_HQ.y + 2, false, 2, roles[i]);
   }
 
   initCardsUI(P);
