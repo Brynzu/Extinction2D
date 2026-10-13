@@ -15,38 +15,211 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="MainMenu" type="VBoxContainer" parent="CanvasLayer/UI"]
+<!-- MENÚ PRINCIPAL -->
+[node name="ScreenMain" type="VBoxContainer" parent="CanvasLayer/UI"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -120.0
-offset_top = -100.0
-offset_right = 120.0
-offset_bottom = 100.0
+offset_left = -140.0
+offset_top = -120.0
+offset_right = 140.0
+offset_bottom = 120.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Title" type="Label" parent="CanvasLayer/UI/MainMenu"]
+[node name="Title" type="Label" parent="CanvasLayer/UI/ScreenMain"]
 layout_mode = 2
-text = "FRENTE (Godot 4)"
+text = "FRENTE"
 horizontal_alignment = 1
 
-[node name="BtnSingleplayer" type="Button" parent="CanvasLayer/UI/MainMenu"]
+[node name="Subtitle" type="Label" parent="CanvasLayer/UI/ScreenMain"]
+layout_mode = 2
+text = "Estrategia en Tiempo Real"
+horizontal_alignment = 1
+
+[node name="BtnSingleplayer" type="Button" parent="CanvasLayer/UI/ScreenMain"]
 layout_mode = 2
 text = "Un Jugador"
 
-[node name="BtnHost" type="Button" parent="CanvasLayer/UI/MainMenu"]
+[node name="BtnMultiplayer" type="Button" parent="CanvasLayer/UI/ScreenMain"]
 layout_mode = 2
-text = "Crear Servidor (Host)"
+text = "Multijugador (P2P)"
 
-[node name="BtnJoin" type="Button" parent="CanvasLayer/UI/MainMenu"]
-layout_mode = 2
-text = "Unirse a Servidor"
+<!-- MENÚ UN JUGADOR -->
+[node name="ScreenSP" type="VBoxContainer" parent="CanvasLayer/UI"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -220.0
+offset_right = 180.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="IPInput" type="LineEdit" parent="CanvasLayer/UI/MainMenu"]
+[node name="TitleSP" type="Label" parent="CanvasLayer/UI/ScreenSP"]
 layout_mode = 2
-placeholder_text = "127.0.0.1"
-alignment = 1
+text = "Un Jugador"
+horizontal_alignment = 1
+
+[node name="LblMap" type="Label" parent="CanvasLayer/UI/ScreenSP"]
+layout_mode = 2
+text = "Tipo de Mapa:"
+
+[node name="MapOption" type="OptionButton" parent="CanvasLayer/UI/ScreenSP"]
+layout_mode = 2
+
+[node name="LblAICount" type="Label" parent="CanvasLayer/UI/ScreenSP"]
+layout_mode = 2
+text = "Ejércitos IA: 1"
+
+[node name="AISlider" type="HSlider" parent="CanvasLayer/UI/ScreenSP"]
+layout_mode = 2
+min_value = 1.0
+max_value = 5.0
+value = 1.0
+
+[node name="LblMode" type="Label" parent="CanvasLayer/UI/ScreenSP"]
+layout_mode = 2
+text = "Modo de Juego:"
+
+[node name="ModeOption" type="OptionButton" parent="CanvasLayer/UI/ScreenSP"]
+layout_mode = 2
+
+[node name="LblPlayers" type="Label" parent="CanvasLayer/UI/ScreenSP"]
+layout_mode = 2
+text = "Equipos y Colores:"
+
+[node name="PlayersScroll" type="ScrollContainer" parent="CanvasLayer/UI/ScreenSP"]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+
+[node name="PlayersList" type="VBoxContainer" parent="CanvasLayer/UI/ScreenSP/PlayersScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SPButtons" type="HBoxContainer" parent="CanvasLayer/UI/ScreenSP"]
+layout_mode = 2
+
+[node name="BtnSPBack" type="Button" parent="CanvasLayer/UI/ScreenSP/SPButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Volver"
+
+[node name="BtnSPStart" type="Button" parent="CanvasLayer/UI/ScreenSP/SPButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Empezar Partida"
+
+<!-- MENÚ MULTIJUGADOR SELECCIÓN -->
+[node name="ScreenMPSelect" type="VBoxContainer" parent="CanvasLayer/UI"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -140.0
+offset_right = 160.0
+offset_bottom = 140.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleMP" type="Label" parent="CanvasLayer/UI/ScreenMPSelect"]
+layout_mode = 2
+text = "Multijugador"
+horizontal_alignment = 1
+
+[node name="BtnMPCreateRoom" type="Button" parent="CanvasLayer/UI/ScreenMPSelect"]
+layout_mode = 2
+text = "Crear Sala (Anfitrión)"
+
+[node name="JoinContainer" type="HBoxContainer" parent="CanvasLayer/UI/ScreenMPSelect"]
+layout_mode = 2
+
+[node name="RoomCodeInput" type="LineEdit" parent="CanvasLayer/UI/ScreenMPSelect/JoinContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "IP / CÓDIGO"
+
+[node name="BtnMPJoin" type="Button" parent="CanvasLayer/UI/ScreenMPSelect/JoinContainer"]
+layout_mode = 2
+text = "Unirse"
+
+[node name="MPStatusMsg" type="Label" parent="CanvasLayer/UI/ScreenMPSelect"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="BtnMPSelectBack" type="Button" parent="CanvasLayer/UI/ScreenMPSelect"]
+layout_mode = 2
+text = "Volver al Menú"
+
+<!-- LOBBY MULTIJUGADOR -->
+[node name="ScreenMPLobby" type="VBoxContainer" parent="CanvasLayer/UI"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -180.0
+offset_right = 180.0
+offset_bottom = 180.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLobby" type="Label" parent="CanvasLayer/UI/ScreenMPLobby"]
+layout_mode = 2
+text = "Sala Multijugador"
+horizontal_alignment = 1
+
+[node name="LobbyCode" type="Label" parent="CanvasLayer/UI/ScreenMPLobby"]
+layout_mode = 2
+text = "CÓDIGO DE SALA: ----"
+horizontal_alignment = 1
+
+[node name="HostMapContainer" type="VBoxContainer" parent="CanvasLayer/UI/ScreenMPLobby"]
+layout_mode = 2
+
+[node name="LblMPMap" type="Label" parent="CanvasLayer/UI/ScreenMPLobby/HostMapContainer"]
+layout_mode = 2
+text = "Tipo de Mapa:"
+
+[node name="MPMapOption" type="OptionButton" parent="CanvasLayer/UI/ScreenMPLobby/HostMapContainer"]
+layout_mode = 2
+
+[node name="LblMPPlayers" type="Label" parent="CanvasLayer/UI/ScreenMPLobby"]
+layout_mode = 2
+text = "Jugadores Conectados:"
+
+[node name="MPPlayersScroll" type="ScrollContainer" parent="CanvasLayer/UI/ScreenMPLobby"]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+
+[node name="MPPlayersList" type="VBoxContainer" parent="CanvasLayer/UI/ScreenMPLobby/MPPlayersScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MPLobbyButtons" type="HBoxContainer" parent="CanvasLayer/UI/ScreenMPLobby"]
+layout_mode = 2
+
+[node name="BtnMPLobbyBack" type="Button" parent="CanvasLayer/UI/ScreenMPLobby/MPLobbyButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Salir"
+
+[node name="BtnMPStart" type="Button" parent="CanvasLayer/UI/ScreenMPLobby/MPLobbyButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Iniciar Partida"
