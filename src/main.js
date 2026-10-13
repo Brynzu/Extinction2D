@@ -108,6 +108,7 @@ function setupMenuUI() {
   btnMpCreateRoom.onclick = async () => {
     isHost = true;
     currentRoomCode = generateRoomCode();
+    myPlayerIdInGame = 1;
     mpStatusMsg.textContent = 'Creando sala...';
 
     try {
@@ -248,7 +249,13 @@ function setupMenuUI() {
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'player-name';
-      nameSpan.textContent = p.name;
+      let displayName = p.name;
+      if (p.id === myPlayerIdInGame) {
+        displayName = isHost ? 'Tú (Host)' : `Tú (${p.name})`;
+      } else if (p.id === 1) {
+        displayName = 'Host';
+      }
+      nameSpan.textContent = displayName;
 
       if (isHost) {
         // Selector de Color
@@ -464,6 +471,12 @@ function handleIncomingNetData(data) {
     case ACTION_TYPES.LOBBY_UPDATE: {
       if (!isHost) {
         mpLobbyPlayers = data.data.players;
+        // Asignar el ID propio para el cliente basado en la lista enviada por el Host (el último agregado es el cliente recién unido)
+        const myPlayerObj = mpLobbyPlayers[mpLobbyPlayers.length - 1];
+        if (myPlayerObj) {
+          myPlayerIdInGame = myPlayerObj.id;
+        }
+
         const mpPlayersListEl = document.getElementById('mp-players-list');
         if (mpPlayersListEl) {
           mpPlayersListEl.innerHTML = '';
@@ -473,7 +486,14 @@ function handleIncomingNetData(data) {
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'player-name';
-            nameSpan.textContent = p.name;
+
+            let displayName = p.name;
+            if (p.id === myPlayerIdInGame) {
+              displayName = `Tú (${p.name})`;
+            } else if (p.id === 1) {
+              displayName = 'Host';
+            }
+            nameSpan.textContent = displayName;
 
             const infoSpan = document.createElement('span');
             infoSpan.style.fontSize = '12px';
@@ -529,9 +549,9 @@ function handleStartGameAction({ mapPreset, playersConfig, gridT }) {
   let myPConfig = null;
   if (isMultiplayer) {
     if (isHost) {
-      myPConfig = playersConfig[0];
+      myPConfig = playersConfig.find((p) => p.id === 1) || playersConfig[0];
     } else {
-      myPConfig = playersConfig.find((p) => p.id === mpLobbyPlayers[mpLobbyPlayers.length - 1]?.id) || playersConfig[1];
+      myPConfig = playersConfig.find((p) => p.id === myPlayerIdInGame) || playersConfig[1] || playersConfig[playersConfig.length - 1];
     }
   }
 
