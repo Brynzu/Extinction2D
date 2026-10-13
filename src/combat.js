@@ -5,26 +5,64 @@ import { U, cl } from './units.js';
 
 export let B = [];
 export let explosions = [];
+let nextBulletId = 1;
+let nextExplosionId = 1;
 
 export function clearBullets() {
   B.length = 0;
   explosions.length = 0;
+  nextBulletId = 1;
+  nextExplosionId = 1;
 }
+
+const knownClientBullets = new Set();
+const knownClientExplosions = new Set();
 
 export function syncBulletsAndExplosions(newBullets = [], newExplosions = []) {
   if (Array.isArray(newBullets)) {
-    newBullets.forEach((nb) => {
-      if (!B.some((b) => Math.hypot(b.x - nb.x, b.y - nb.y) < 1.0 && b.playerId === nb.playerId)) {
-        B.push({ ...nb });
+    const activeIds = new Set();
+    let hasNewShot = false;
+
+    B = newBullets.map((nb) => {
+      const bId = nb.id || `${nb.playerId}_${nb.x.toFixed(2)}_${nb.y.toFixed(2)}`;
+      activeIds.add(bId);
+      if (!knownClientBullets.has(bId)) {
+        knownClientBullets.add(bId);
+        hasNewShot = true;
       }
+      return { ...nb, id: bId };
     });
+
+    for (const id of knownClientBullets) {
+      if (!activeIds.has(id)) knownClientBullets.delete(id);
+    }
+
+    if (hasNewShot) {
+      sounds.playShot();
+    }
   }
+
   if (Array.isArray(newExplosions)) {
-    newExplosions.forEach((nex) => {
-      if (!explosions.some((ex) => Math.hypot(ex.x - nex.x, ex.y - nex.y) < 0.5)) {
-        explosions.push({ ...nex });
+    const activeExIds = new Set();
+    let hasNewExplosion = false;
+
+    explosions = newExplosions.map((nex) => {
+      const exId = nex.id || `${nex.x.toFixed(2)}_${nex.y.toFixed(2)}`;
+      activeExIds.add(exId);
+      if (!knownClientExplosions.has(exId)) {
+        knownClientExplosions.add(exId);
+        hasNewExplosion = true;
       }
+      return { ...nex, id: exId };
     });
+
+    for (const id of knownClientExplosions) {
+      if (!activeExIds.has(id)) knownClientExplosions.delete(id);
+    }
+
+    if (hasNewExplosion) {
+      sounds.playExplosion();
+    }
   }
 }
 
@@ -107,7 +145,8 @@ export function vis(dt, players = []) {
 
 export function triggerExplosion(x, y, radiusMult = 1.0, players = []) {
   sounds.playExplosion();
-  explosions.push({ x, y, l: 0.4, maxL: 0.4 });
+  const exId = `ex_${nextExplosionId++}_${Date.now()}`;
+  explosions.push({ id: exId, x, y, l: 0.4, maxL: 0.4 });
 
   const directRadius = 0.6 * radiusMult;
   const splashRadius = 1.1 * radiusMult;
@@ -345,7 +384,9 @@ export function updateCombat(dt, players = [], isClientOnly = false) {
           (deep(u) ? CONFIG.COMBAT.DISPERSION_TRENCH_DEEP_MULT : 1) *
           (tg.isDrone ? CONFIG.COMBAT.DISPERSION_DRONE_MULT : 1);
 
+      const bulletId = `b_${nextBulletId++}_${uPid}_${Date.now()}`;
       B.push({
+        id: bulletId,
         x: u.x,
         y: u.y,
         sx: u.x,

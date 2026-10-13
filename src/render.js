@@ -95,7 +95,7 @@ export function draw(humanPlayer, players = [], box = null) {
 
   const isSpectator = humanPlayer && (humanPlayer.team === 'SPECTATOR' || humanPlayer.isSpectator);
 
-  // 1. Renderizar Territorio Conquistado
+  // 1. Territorio Conquistado (conteo interno sin pintar la cuadrícula del mapa)
   for (let y = 0; y < R; y++) {
     for (let x = 0; x < C; x++) {
       const pId = Math.round(v[y * C + x]);
@@ -103,14 +103,6 @@ export function draw(humanPlayer, players = [], box = null) {
         const p = playerMap.get(pId);
         territoryCounts.set(pId, (territoryCounts.get(pId) || 0) + 1);
         teamTerritoryCounts.set(p.team, (teamTerritoryCounts.get(p.team) || 0) + 1);
-
-        // El color de conquista del terreno SOLO se pinta en Modo Espectador o dentro de la línea de visión
-        const inVision = canSee(x + 0.5, y + 0.5, humanPlayer, players);
-        if (isSpectator || inVision) {
-          const teamCol = CONFIG.TEAM_COLORS[p.team] || CONFIG.COLORS.blue;
-          g.fillStyle = teamCol.main + '40'; // 25% opacidad
-          g.fillRect(x * S, y * S, S, S);
-        }
       }
     }
   }
