@@ -1,0 +1,165 @@
+[gd_scene load_steps=2 format=3 uid="uid://d1e2f3a4b5c6"]
+
+[ext_resource type="Script" path="res://scripts/Game.gd" id="1_game"]
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_game")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="GameUI" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Header" type="HBoxContainer" parent="CanvasLayer/GameUI"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = 40.0
+grow_horizontal = 2
+
+[node name="GameTitle" type="Label" parent="CanvasLayer/GameUI/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "FRENTE"
+
+[node name="BtnPause" type="Button" parent="CanvasLayer/GameUI/Header"]
+layout_mode = 2
+text = "⏸ Menú"
+
+[node name="ScoreContainer" type="HBoxContainer" parent="CanvasLayer/GameUI"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 10.0
+offset_top = 45.0
+offset_right = -10.0
+offset_bottom = 65.0
+grow_horizontal = 2
+
+[node name="LblBlue" type="Label" parent="CanvasLayer/GameUI/ScoreContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tú 0%"
+
+[node name="LblRed" type="Label" parent="CanvasLayer/GameUI/ScoreContainer"]
+layout_mode = 2
+text = "Enemigos 0%"
+horizontal_alignment = 2
+
+[node name="ResourceContainer" type="HBoxContainer" parent="CanvasLayer/GameUI"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -100.0
+offset_right = -10.0
+offset_bottom = -70.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="ResourceBar" type="ProgressBar" parent="CanvasLayer/GameUI/ResourceContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 10.0
+value = 5.0
+show_percentage = false
+
+[node name="LblResource" type="Label" parent="CanvasLayer/GameUI/ResourceContainer"]
+layout_mode = 2
+text = "5"
+
+[node name="CardsContainer" type="HBoxContainer" parent="CanvasLayer/GameUI"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -65.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="ModalPause" type="ColorRect" parent="CanvasLayer"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.75)
+
+[node name="PauseCard" type="VBoxContainer" parent="CanvasLayer/ModalPause"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -120.0
+offset_top = -80.0
+offset_right = 120.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PauseTitle" type="Label" parent="CanvasLayer/ModalPause/PauseCard"]
+layout_mode = 2
+text = "Juego Pausado"
+horizontal_alignment = 1
+
+[node name="BtnResume" type="Button" parent="CanvasLayer/ModalPause/PauseCard"]
+layout_mode = 2
+text = "Continuar"
+
+[node name="BtnQuit" type="Button" parent="CanvasLayer/ModalPause/PauseCard"]
+layout_mode = 2
+text = "Rendirse / Salir al Menú"
+
+[node name="ModalEnd" type="ColorRect" parent="CanvasLayer"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.75)
+
+[node name="EndCard" type="VBoxContainer" parent="CanvasLayer/ModalEnd"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -140.0
+offset_top = -90.0
+offset_right = 140.0
+offset_bottom = 90.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="EndTitle" type="Label" parent="CanvasLayer/ModalEnd/EndCard"]
+layout_mode = 2
+text = "¡VICTORIA!"
+horizontal_alignment = 1
+
+[node name="EndDesc" type="Label" parent="CanvasLayer/ModalEnd/EndCard"]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="BtnEndReturn" type="Button" parent="CanvasLayer/ModalEnd/EndCard"]
+layout_mode = 2
+text = "Volver al Menú"
