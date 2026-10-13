@@ -650,11 +650,18 @@ function applyFullStateSync(data) {
     });
 
     if (data.units.length === U.length) {
-      // Actualización directa in-place para no perder referencias
+      // Actualización directa con suavizado (interpolación) para evitar saltos bruscos por latencia
       data.units.forEach((su, i) => {
         const u = U[i];
-        u.x = su.x;
-        u.y = su.y;
+        const dist = Math.hypot(su.x - u.x, su.y - u.y);
+        // Si la distancia es pequeña (< 2.5 celdas), suavizar movimiento; si es un salto grande (teleport/respawn), actualizar directo
+        if (dist < 2.5) {
+          u.x += (su.x - u.x) * 0.4;
+          u.y += (su.y - u.y) * 0.4;
+        } else {
+          u.x = su.x;
+          u.y = su.y;
+        }
         u.tx = su.tx;
         u.ty = su.ty;
         u.hp = su.hp;
@@ -904,6 +911,7 @@ function step(now) {
               seen: u.seen,
             })),
             bullets: B.map((b) => ({
+              id: b.id,
               x: b.x,
               y: b.y,
               vx: b.vx,
@@ -913,6 +921,7 @@ function step(now) {
               l: b.l,
             })),
             explosions: explosions.map((ex) => ({
+              id: ex.id,
               x: ex.x,
               y: ex.y,
               l: ex.l,
