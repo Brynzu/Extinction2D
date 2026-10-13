@@ -40,12 +40,22 @@ const ICE_SERVERS = [
     credential: 'openrelayproject',
   },
   {
+    urls: 'turn:openrelay.metered.ca:80?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
     urls: 'turn:openrelay.metered.ca:443',
     username: 'openrelayproject',
     credential: 'openrelayproject',
   },
   {
     urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turns:openrelay.metered.ca:443?transport=tcp',
     username: 'openrelayproject',
     credential: 'openrelayproject',
   },
@@ -65,7 +75,7 @@ export function createHost(roomCode, handlers) {
       debug: 1,
       config: {
         iceServers: ICE_SERVERS,
-        iceTransportPolicy: 'all',
+        iceCandidatePoolSize: 10,
       },
     });
 
@@ -128,7 +138,7 @@ export function joinRoom(roomCode, handlers) {
       debug: 1,
       config: {
         iceServers: ICE_SERVERS,
-        iceTransportPolicy: 'all',
+        iceCandidatePoolSize: 10,
       },
     });
 
@@ -159,7 +169,12 @@ export function joinRoom(roomCode, handlers) {
 
       conn.on('data', (data) => {
         try {
-          const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+          let parsed = data;
+          if (typeof parsed === 'string') {
+            try {
+              parsed = JSON.parse(parsed);
+            } catch (e) {}
+          }
           if (handlers.onData) {
             handlers.onData(parsed, conn);
           }
@@ -192,10 +207,13 @@ export function joinRoom(roomCode, handlers) {
 }
 
 export function sendNetMessage(msg) {
-  const jsonStr = JSON.stringify(msg);
   for (const conn of connections) {
     if (conn && conn.open) {
-      conn.send(jsonStr);
+      try {
+        conn.send(msg);
+      } catch (e) {
+        console.error('Error sending net message:', e);
+      }
     }
   }
 }
